@@ -120,7 +120,7 @@ st.markdown("---")
 
 # --- KẾT NỐI API & UPLOAD ---
 OUTPUT_SHEET_URL = "https://docs.google.com/spreadsheets/d/1zSeYfiaSFJNdXMOZnwG7WsW0b33v-rbt0EruvMS_aA0/edit"
-# [QUAN TRỌNG]: DÁN LINK APPS SCRIPT UP HÌNH MỚI TẠO VÀO ĐÂY NHA:
+# ĐÃ DÁN LINK APPS SCRIPT THẬT CỦA M:
 LINK_WEB_APP = "https://script.google.com/macros/s/AKfycbwK7XqRKonpA1FqU1fhoXh4BWbQCHyInVibnutuM0aZzWkaozezKXojDF4xDSCaNlQ43g/exec" 
 
 @st.cache_resource
@@ -193,7 +193,6 @@ if "current_user" in st.session_state:
     user_data = st.session_state.current_user
     
     with st.container(border=True):
-        # Đã đổi thành MYêu
         st.markdown(f"<div class='base-text'>MYêu: <span class='highlight-text'>{user_data['name']}</span></div>", unsafe_allow_html=True)
         
         # 1. TẠO KHUNG CỐ ĐỊNH 3 MÓN (Ép thứ tự)
@@ -233,17 +232,21 @@ if "current_user" in st.session_state:
             data = agg_items[merch]
             
             tick_html = ""
+            row_style = ""
+            
             if data["has_item"]:
                 tick_html = "<span class='highlight-text'>✔</span>"
-                # Hiển thị số lượng kèm theo nếu món không có size (VD mua 2 Gối Ômm)
                 if data["none"] > 1:
                     tick_html += f" <span class='highlight-text' style='font-size: 1.1rem;'>({data['none']})</span>"
+            else:
+                # Nếu không mua món này -> Ép màu xám, font mỏng lại cho chìm hẳn
+                row_style = "color: #b0b0b0 !important; font-weight: normal !important;"
 
             def fmt_qty(q):
                 return f"<span class='highlight-text'>{q}</span>" if q > 0 else ""
                 
             table_html += "<tr>"
-            table_html += f"<td>{merch}</td>"
+            table_html += f"<td style='{row_style}'>{merch}</td>"
             table_html += f"<td>{tick_html}</td>"
             table_html += f"<td>{fmt_qty(data['S'])}</td>"
             table_html += f"<td>{fmt_qty(data['M'])}</td>"
