@@ -30,7 +30,7 @@ if not st.session_state.authenticated:
     st.stop()
 
 # --- CẤU HÌNH GIAO DIỆN CHUẨN TONE ---
-st.set_page_config(page_title="MYÊU PICKER", layout="centered")
+st.set_page_config(page_title="MYÊU DELIVERY", page_icon="📦", layout="centered")
 
 st.markdown("""
 <style>
