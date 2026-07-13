@@ -121,7 +121,7 @@ st.markdown("---")
 # --- KẾT NỐI API & UPLOAD ---
 OUTPUT_SHEET_URL = "https://docs.google.com/spreadsheets/d/1zSeYfiaSFJNdXMOZnwG7WsW0b33v-rbt0EruvMS_aA0/edit"
 # DÁN LINK APPS SCRIPT VÀO ĐÂY NHA:
-LINK_WEB_APP = "https://script.google.com/macros/s/xxxx/exec" 
+LINK_WEB_APP = "https://script.google.com/macros/s/AKfycbwK7XqRKonpA1FqU1fhoXh4BWbQCHyInVibnutuM0aZzWkaozezKXojDF4xDSCaNlQ43g/exec" 
 
 @st.cache_resource
 def get_gspread_client():
