@@ -193,7 +193,7 @@ if "current_user" in st.session_state:
     user_data = st.session_state.current_user
     
     with st.container(border=True):
-        st.markdown(f"<div class='base-text'>Khách hàng: <span class='highlight-text'>{user_data['name']}</span></div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='base-text'>MYêu: <span class='highlight-text'>{user_data['name']}</span></div>", unsafe_allow_html=True)
         
         # Gom nhóm dữ liệu sản phẩm của Khách Hàng để vẽ bảng
         agg_items = {}
