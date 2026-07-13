@@ -99,6 +99,12 @@ st.markdown("""
         font-size: 1.1rem;
     }
     
+    /* CLASS ÉP MÀU XÁM CHO MÓN KHÔNG LẤY */
+    .order-table td.disabled-text {
+        color: #c0c0c0 !important;
+        font-weight: normal !important;
+    }
+    
     div.stButton > button {
         background: linear-gradient(90deg, #C71585, #8B008B) !important;
         color: white !important;
@@ -120,7 +126,7 @@ st.markdown("---")
 
 # --- KẾT NỐI API & UPLOAD ---
 OUTPUT_SHEET_URL = "https://docs.google.com/spreadsheets/d/1zSeYfiaSFJNdXMOZnwG7WsW0b33v-rbt0EruvMS_aA0/edit"
-# ĐÃ DÁN LINK APPS SCRIPT THẬT CỦA M:
+# LINK APPS SCRIPT THẬT CỦA M:
 LINK_WEB_APP = "https://script.google.com/macros/s/AKfycbwK7XqRKonpA1FqU1fhoXh4BWbQCHyInVibnutuM0aZzWkaozezKXojDF4xDSCaNlQ43g/exec" 
 
 @st.cache_resource
@@ -232,21 +238,21 @@ if "current_user" in st.session_state:
             data = agg_items[merch]
             
             tick_html = ""
-            row_style = ""
+            td_class = ""
             
             if data["has_item"]:
                 tick_html = "<span class='highlight-text'>✔</span>"
                 if data["none"] > 1:
                     tick_html += f" <span class='highlight-text' style='font-size: 1.1rem;'>({data['none']})</span>"
             else:
-                # Nếu không mua món này -> Ép màu xám, font mỏng lại cho chìm hẳn
-                row_style = "color: #b0b0b0 !important; font-weight: normal !important;"
+                # Ép class disabled-text vào để chuyển xám và làm mờ chữ
+                td_class = "class='disabled-text'"
 
             def fmt_qty(q):
                 return f"<span class='highlight-text'>{q}</span>" if q > 0 else ""
                 
             table_html += "<tr>"
-            table_html += f"<td style='{row_style}'>{merch}</td>"
+            table_html += f"<td {td_class}>{merch}</td>"
             table_html += f"<td>{tick_html}</td>"
             table_html += f"<td>{fmt_qty(data['S'])}</td>"
             table_html += f"<td>{fmt_qty(data['M'])}</td>"
