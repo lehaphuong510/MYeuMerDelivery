@@ -45,21 +45,19 @@ st.markdown("""
     }
     .main-title span { display: block; white-space: nowrap; }
     
-    /* CLASS CHỮ TRẮNG THÔNG THƯỜNG */
     .base-text {
-        font-size: 1.15rem;
+        font-size: 1.25rem;
         font-weight: bold;
         color: inherit;
-        line-height: 1.8;
     }
     
-    /* CLASS HIGHLIGHT MÀU HỒNG - TÍM CHO CHỮ (TO HƠN VÀ ĐẬM HƠN) */
+    /* CLASS HIGHLIGHT MÀU HỒNG - TÍM CHO CHỮ, SỐ & TICK */
     .highlight-text { 
         background: linear-gradient(90deg, #C71585, #8B008B);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         font-weight: 900 !important; 
-        font-size: 1.25rem !important;
+        font-size: 1.35rem !important;
     }
     
     .section-title {
@@ -71,6 +69,34 @@ st.markdown("""
         margin-top: 20px;
         margin-bottom: 15px;
         text-align: left;
+    }
+    
+    /* STYLE CHO BẢNG MỚI (Y CHANG DEMO HÌNH CỦA M) */
+    .order-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-family: sans-serif;
+        margin-top: 15px;
+        margin-bottom: 20px;
+    }
+    .order-table th {
+        background: linear-gradient(90deg, #8B008B, #C71585);
+        color: white;
+        padding: 12px;
+        text-align: center;
+        font-size: 1.1rem;
+    }
+    .order-table th:first-child { text-align: left; }
+    .order-table td {
+        padding: 12px;
+        text-align: center;
+        border-bottom: 1px dotted #C71585;
+    }
+    .order-table td:first-child {
+        text-align: left;
+        color: #5a104a; /* Tím đậm cho tên hàng */
+        font-weight: bold;
+        font-size: 1.1rem;
     }
     
     div.stButton > button {
@@ -94,7 +120,7 @@ st.markdown("---")
 
 # --- KẾT NỐI API & UPLOAD ---
 OUTPUT_SHEET_URL = "https://docs.google.com/spreadsheets/d/1zSeYfiaSFJNdXMOZnwG7WsW0b33v-rbt0EruvMS_aA0/edit"
-# [QUAN TRỌNG]: DÁN LINK APPS SCRIPT UP HÌNH MỚI TẠO VÀO ĐÂY NHA:
+# DÁN LINK APPS SCRIPT VÀO ĐÂY NHA:
 LINK_WEB_APP = "https://script.google.com/macros/s/xxxx/exec" 
 
 @st.cache_resource
@@ -167,23 +193,65 @@ if "current_user" in st.session_state:
     user_data = st.session_state.current_user
     
     with st.container(border=True):
-        st.markdown(f"<div class='base-text'>Khách hàng: <span class='highlight-text'>{user_data['name']}</span></div><br>", unsafe_allow_html=True)
+        st.markdown(f"<div class='base-text'>Khách hàng: <span class='highlight-text'>{user_data['name']}</span></div>", unsafe_allow_html=True)
         
-        for i, item in enumerate(user_data['items']):
-            merch = item['Loại Merchandise']
-            size = item['Size áo']
-            qty = item['SL']
+        # Gom nhóm dữ liệu sản phẩm của Khách Hàng để vẽ bảng
+        agg_items = {}
+        for item in user_data['items']:
+            merch = str(item['Loại Merchandise']).strip()
+            size = str(item.get('Size áo', '')).strip().upper()
+            if size.startswith('SIZE'): size = size[4:].strip()
             
-            if pd.notna(size) and str(size).strip() != '' and str(size).lower() != 'nan':
-                clean_size = str(size).strip()
-                if clean_size.lower().startswith('size'):
-                    clean_size = clean_size[4:].strip()
-                size_html = f" - Size <span class='highlight-text'>{clean_size}</span>"
-            else:
-                size_html = ""
+            qty = pd.to_numeric(item.get('SL', 0), errors='coerce')
+            qty = int(qty) if pd.notna(qty) else 0
+            
+            if merch not in agg_items:
+                agg_items[merch] = {"S": 0, "M": 0, "L": 0, "none": 0}
                 
-            st.markdown(f"<div class='base-text'>{i+1}. <span class='highlight-text'>{merch}</span>{size_html} - <span class='highlight-text'>{qty}</span> cái</div>", unsafe_allow_html=True)
-            st.markdown("<div style='margin-bottom: 5px;'></div>", unsafe_allow_html=True) # Khoảng cách các món
+            if size in ["S", "M", "L"]:
+                agg_items[merch][size] += qty
+            else:
+                agg_items[merch]["none"] += qty
+
+        # Ép thứ tự hiển thị
+        def user_merch_sort(m):
+            m_lower = m.lower()
+            if "áo thun" in m_lower: return 1
+            if "gối" in m_lower: return 2
+            if "package" in m_lower: return 3
+            return 4
+            
+        sorted_merch = sorted(agg_items.keys(), key=user_merch_sort)
+
+        # XÂY DỰNG BẢNG HTML CHO CHI TIẾT ĐƠN HÀNG (Y CHANG DEMO)
+        table_html = "<table class='order-table'>"
+        table_html += "<tr><th>Loại Merchandise</th><th>Lấy</th><th>S</th><th>M</th><th>L</th></tr>"
+        
+        for merch in sorted_merch:
+            data = agg_items[merch]
+            total_qty = data["S"] + data["M"] + data["L"] + data["none"]
+            
+            # Logic Tick & Số lượng cho loại ko size (VD: Gối Ômm)
+            tick_html = ""
+            if total_qty > 0:
+                tick_html = "<span class='highlight-text'>✔</span>"
+                # Nếu mua Gối Ômm mà mua 2 cái thì hiện: ✔ (2) cho an toàn không bị lọt kho
+                if data["none"] > 1:
+                    tick_html += f" <span class='highlight-text' style='font-size: 1.1rem;'>({data['none']})</span>"
+
+            def fmt_qty(q):
+                return f"<span class='highlight-text'>{q}</span>" if q > 0 else ""
+                
+            table_html += "<tr>"
+            table_html += f"<td>{merch}</td>"
+            table_html += f"<td>{tick_html}</td>"
+            table_html += f"<td>{fmt_qty(data['S'])}</td>"
+            table_html += f"<td>{fmt_qty(data['M'])}</td>"
+            table_html += f"<td>{fmt_qty(data['L'])}</td>"
+            table_html += "</tr>"
+            
+        table_html += "</table>"
+        st.markdown(table_html, unsafe_allow_html=True)
     
     st.markdown("---")
     photo = st.file_uploader("Chụp hóa đơn/bằng chứng", type=['png', 'jpg', 'jpeg'])
@@ -210,7 +278,7 @@ if "current_user" in st.session_state:
                 else:
                     st.error("Up hình thất bại, vui lòng thử lại!")
 
-# --- THỐNG KÊ SỐ LƯỢNG ĐÃ GIAO (BẢNG HTML) ---
+# --- THỐNG KÊ SỐ LƯỢNG ĐÃ GIAO (BẢNG HTML CỐ ĐỊNH FORM) ---
 st.markdown("---")
 st.markdown('<div class="section-title">📊 THỐNG KÊ SỐ LƯỢNG ĐÃ GIAO</div>', unsafe_allow_html=True)
 
@@ -222,50 +290,65 @@ if not df_all.empty and 'Loại Merchandise' in df_all.columns:
     html_table += "<th style='text-align: left; padding: 12px;'>Loại Merchandise</th>"
     html_table += "<th style='padding: 12px;'>Đã giao</th></tr>"
     
-    merch_list = df_all['Loại Merchandise'].dropna().unique().tolist()
+    # 1. DANH SÁCH CHỐT CỨNG (Ép luôn luôn hiện đủ size S, M, L kể cả khi chưa có đơn)
+    fixed_merch_structure = [
+        {"name": "Áo thun MYÊU", "sizes": ["S", "M", "L"]},
+        {"name": "Gối Ômm", "sizes": []},
+        {"name": "ÔMM MYÊU Package", "sizes": ["S", "M", "L"]}
+    ]
     
-    # Ép thứ tự: Áo thun -> Gối -> Package
-    def merch_sort_key(m):
-        m_lower = str(m).lower()
-        if "áo thun" in m_lower: return 1
-        elif "gối" in m_lower: return 2
-        elif "package" in m_lower: return 3
-        else: return 4
+    processed_merch_names = []
+    gradient_style = "padding: 12px; font-weight: bold; background: linear-gradient(90deg, #C71585, #8B008B); -webkit-background-clip: text; -webkit-text-fill-color: transparent;"
+    
+    for item in fixed_merch_structure:
+        merch = item["name"]
+        processed_merch_names.append(merch.lower())
         
-    merch_list.sort(key=merch_sort_key)
-    
-    for merch in merch_list:
-        merch_df_completed = df_completed[df_completed['Loại Merchandise'] == merch]
+        # Quét data lấy số liệu
+        mask_completed = df_completed['Loại Merchandise'].str.contains(merch, case=False, na=False)
+        merch_df_completed = df_completed[mask_completed]
         total_delivered = pd.to_numeric(merch_df_completed['SL'], errors='coerce').fillna(0).sum()
-        
-        merch_df_all = df_all[df_all['Loại Merchandise'] == merch]
-        sizes = merch_df_all['Size áo'].dropna().unique() if 'Size áo' in merch_df_all.columns else []
-        valid_sizes = [s for s in sizes if str(s).strip() != '' and str(s).lower() != 'nan']
-        
-        def clean_size_for_sort(sz):
-            sz = str(sz).strip()
-            if sz.lower().startswith('size'): sz = sz[4:].strip()
-            return sz.upper()
-            
-        size_order = {"S": 1, "M": 2, "L": 3, "XL": 4, "XXL": 5}
-        valid_sizes.sort(key=lambda x: size_order.get(clean_size_for_sort(x), 99))
-        
-        size_rows_html = ""
-        for raw_size in valid_sizes:
-            clean_size = clean_size_for_sort(raw_size)
-            size_delivered = pd.to_numeric(merch_df_completed[merch_df_completed['Size áo'] == raw_size]['SL'], errors='coerce').fillna(0).sum()
-            
-            size_rows_html += f"<tr style='border-bottom: 1px solid #eee;'>"
-            size_rows_html += f"<td style='text-align: left; padding: 8px 10px 8px 30px; color: #444; font-size: 0.95rem;'>↳ Size {clean_size}</td>"
-            size_rows_html += f"<td style='padding: 8px;'>{int(size_delivered)}</td></tr>"
-        
-        gradient_style = "padding: 12px; font-weight: bold; background: linear-gradient(90deg, #C71585, #8B008B); -webkit-background-clip: text; -webkit-text-fill-color: transparent;"
         
         html_table += f"<tr style='background-color: #fef5fa; border-top: 1px solid #ddd;'>"
         html_table += f"<td style='text-align: left; {gradient_style}'>{merch}</td>"
         html_table += f"<td style='{gradient_style}'>{int(total_delivered)}</td></tr>"
         
-        html_table += size_rows_html
+        # Chèn các row Size (S, M, L) đã được ép cứng
+        for sz in item["sizes"]:
+            # Lọc số lượng của Size tương ứng
+            mask_size = merch_df_completed['Size áo'].astype(str).str.upper().str.replace('SIZE', '').str.strip() == sz
+            size_delivered = pd.to_numeric(merch_df_completed[mask_size]['SL'], errors='coerce').fillna(0).sum()
+            
+            html_table += f"<tr style='border-bottom: 1px solid #eee;'>"
+            html_table += f"<td style='text-align: left; padding: 8px 10px 8px 30px; color: #444; font-size: 0.95rem;'>↳ Size {sz}</td>"
+            html_table += f"<td style='padding: 8px;'>{int(size_delivered)}</td></tr>"
+
+    # 2. Xử lý bổ sung (Phòng hờ tương lai m nhập thêm Merchandise lạ vào file Sheet mà không có trong list cố định)
+    other_merch = [m for m in df_all['Loại Merchandise'].dropna().unique() 
+                   if not any(f in str(m).lower() for f in processed_merch_names)]
+                   
+    for merch in other_merch:
+        merch_df_completed = df_completed[df_completed['Loại Merchandise'] == merch]
+        total_delivered = pd.to_numeric(merch_df_completed['SL'], errors='coerce').fillna(0).sum()
+        
+        html_table += f"<tr style='background-color: #fef5fa; border-top: 1px solid #ddd;'>"
+        html_table += f"<td style='text-align: left; {gradient_style}'>{merch}</td>"
+        html_table += f"<td style='{gradient_style}'>{int(total_delivered)}</td></tr>"
+        
+        # Tự động list size nếu có
+        merch_df_all = df_all[df_all['Loại Merchandise'] == merch]
+        sizes = merch_df_all['Size áo'].dropna().unique() if 'Size áo' in merch_df_all.columns else []
+        valid_sizes = [s for s in sizes if str(s).strip() != '' and str(s).lower() != 'nan']
+        for sz in valid_sizes:
+            clean_sz = str(sz).strip().upper()
+            if clean_sz.startswith('SIZE'): clean_sz = clean_sz[4:].strip()
+            
+            mask_size = merch_df_completed['Size áo'].astype(str).str.upper().str.replace('SIZE', '').str.strip() == clean_sz
+            size_delivered = pd.to_numeric(merch_df_completed[mask_size]['SL'], errors='coerce').fillna(0).sum()
+            
+            html_table += f"<tr style='border-bottom: 1px solid #eee;'>"
+            html_table += f"<td style='text-align: left; padding: 8px 10px 8px 30px; color: #444; font-size: 0.95rem;'>↳ Size {clean_sz}</td>"
+            html_table += f"<td style='padding: 8px;'>{int(size_delivered)}</td></tr>"
 
     html_table += "</table>"
     st.markdown(html_table, unsafe_allow_html=True)
