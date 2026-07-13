@@ -112,37 +112,48 @@ if st.button("Thông tin MYêu nhận Mer", use_container_width=True):
     try:
         sheet = client.open_by_url(OUTPUT_SHEET_URL).sheet1
         all_records = sheet.get_all_records()
-        df = pd.DataFrame(all_records)
-
-        # 1. Lọc ra các dòng chưa Completed
-        df_pending = df[df['Status'].astype(str).str.strip() != 'Completed']
-
-        if df_pending.empty:
-            st.success("Tạm thời không có đơn hàng nào chờ giao!")
+        
+        if not all_records:
+            st.warning("Sheet Đầu Ra hiện đang trống chưa có data!")
         else:
-            # 2. Sort theo Thời gian, lấy cái cũ nhất
-            df_pending['Thời Gian'] = pd.to_datetime(df_pending['Thời Gian'])
-            df_pending = df_pending.sort_values(by='Thời Gian')
-
-            # 3. Lấy ĐT hoặc Mã Đơn của người đầu tiên để gom nhóm
-            first_row = df_pending.iloc[0]
-            target_phone = first_row['ĐT']
-            target_order = first_row['Mã đơn hàng']
-            target_name = first_row['Tên']
-
-            # Gom tất cả hàng của người này
-            user_items = df_pending[(df_pending['ĐT'] == target_phone) & (df_pending['Mã đơn hàng'] == target_order)]
-
-            # Lấy index để cập nhật sau này (cộng 2 vì header ở dòng 1 và zero-index)
-            row_indices = user_items.index.tolist()
-
-            st.session_state.current_user = {
-                "name": target_name,
-                "order_code": str(target_order),
-                "items": user_items.to_dict('records'),
-                "row_indices": row_indices
-            }
-
+            df = pd.DataFrame(all_records)
+            
+            # --- ĐÂY LÀ DÒNG CHỐT CHẶN: ÉP XÓA KHOẢNG TRẮNG Ở TÊN CỘT ---
+            df.columns = df.columns.str.strip() 
+            
+            # Kiểm tra an toàn xem có đủ cột chưa
+            if 'Tên' not in df.columns or 'Status' not in df.columns:
+                st.error("⚠️ File Sheet Đầu Ra đang bị thiếu tên cột hoặc sai tên. M check lại Row 1 nha!")
+            else:
+                # 1. Lọc ra các dòng chưa Completed
+                df_pending = df[df['Status'].astype(str).str.strip() != 'Completed']
+                
+                if df_pending.empty:
+                    st.success("Tạm thời không có đơn hàng nào chờ giao!")
+                else:
+                    # 2. Sort theo Thời gian, lấy cái cũ nhất
+                    df_pending['Thời Gian'] = pd.to_datetime(df_pending['Thời Gian'])
+                    df_pending = df_pending.sort_values(by='Thời Gian')
+                    
+                    # 3. Lấy ĐT hoặc Mã Đơn của người đầu tiên để gom nhóm
+                    first_row = df_pending.iloc[0]
+                    target_phone = first_row['ĐT']
+                    target_order = first_row['Mã đơn hàng']
+                    target_name = first_row['Tên']
+                    
+                    # Gom tất cả hàng của người này
+                    user_items = df_pending[(df_pending['ĐT'] == target_phone) & (df_pending['Mã đơn hàng'] == target_order)]
+                    
+                    # Lấy index để cập nhật sau này (cộng 2 vì header ở dòng 1 và zero-index)
+                    row_indices = user_items.index.tolist()
+                    
+                    st.session_state.current_user = {
+                        "name": target_name,
+                        "order_code": str(target_order),
+                        "items": user_items.to_dict('records'),
+                        "row_indices": row_indices
+                    }
+            
     except Exception as e:
         st.error(f"Lỗi khi tải dữ liệu: {e}")
 
