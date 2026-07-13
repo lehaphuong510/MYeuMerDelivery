@@ -71,7 +71,7 @@ st.markdown("""
         text-align: left;
     }
     
-    /* STYLE CHO BẢNG MỚI (Y CHANG DEMO HÌNH CỦA M) */
+    /* STYLE CHO BẢNG MỚI */
     .order-table {
         width: 100%;
         border-collapse: collapse;
@@ -94,7 +94,7 @@ st.markdown("""
     }
     .order-table td:first-child {
         text-align: left;
-        color: #5a104a; /* Tím đậm cho tên hàng */
+        color: #5a104a; 
         font-weight: bold;
         font-size: 1.1rem;
     }
@@ -120,7 +120,7 @@ st.markdown("---")
 
 # --- KẾT NỐI API & UPLOAD ---
 OUTPUT_SHEET_URL = "https://docs.google.com/spreadsheets/d/1zSeYfiaSFJNdXMOZnwG7WsW0b33v-rbt0EruvMS_aA0/edit"
-# DÁN LINK APPS SCRIPT VÀO ĐÂY NHA:
+# [QUAN TRỌNG]: DÁN LINK APPS SCRIPT UP HÌNH MỚI TẠO VÀO ĐÂY NHA:
 LINK_WEB_APP = "https://script.google.com/macros/s/AKfycbwK7XqRKonpA1FqU1fhoXh4BWbQCHyInVibnutuM0aZzWkaozezKXojDF4xDSCaNlQ43g/exec" 
 
 @st.cache_resource
@@ -193,49 +193,49 @@ if "current_user" in st.session_state:
     user_data = st.session_state.current_user
     
     with st.container(border=True):
+        # Đã đổi thành MYêu
         st.markdown(f"<div class='base-text'>MYêu: <span class='highlight-text'>{user_data['name']}</span></div>", unsafe_allow_html=True)
         
-        # Gom nhóm dữ liệu sản phẩm của Khách Hàng để vẽ bảng
-        agg_items = {}
+        # 1. TẠO KHUNG CỐ ĐỊNH 3 MÓN (Ép thứ tự)
+        fixed_order_items = ["Áo thun MYÊU", "Gối Ômm", "ÔMM MYÊU Package"]
+        agg_items = {
+            "Áo thun MYÊU": {"S": 0, "M": 0, "L": 0, "none": 0, "has_item": False},
+            "Gối Ômm": {"S": 0, "M": 0, "L": 0, "none": 0, "has_item": False},
+            "ÔMM MYÊU Package": {"S": 0, "M": 0, "L": 0, "none": 0, "has_item": False}
+        }
+
+        # 2. ĐỔ DỮ LIỆU VÀO KHUNG
         for item in user_data['items']:
-            merch = str(item['Loại Merchandise']).strip()
-            size = str(item.get('Size áo', '')).strip().upper()
-            if size.startswith('SIZE'): size = size[4:].strip()
+            raw_merch = str(item['Loại Merchandise']).strip()
+            merch_key = None
+            if "áo thun" in raw_merch.lower(): merch_key = "Áo thun MYÊU"
+            elif "gối" in raw_merch.lower(): merch_key = "Gối Ômm"
+            elif "package" in raw_merch.lower(): merch_key = "ÔMM MYÊU Package"
             
-            qty = pd.to_numeric(item.get('SL', 0), errors='coerce')
-            qty = int(qty) if pd.notna(qty) else 0
-            
-            if merch not in agg_items:
-                agg_items[merch] = {"S": 0, "M": 0, "L": 0, "none": 0}
+            if merch_key:
+                agg_items[merch_key]["has_item"] = True
+                size = str(item.get('Size áo', '')).strip().upper()
+                if size.startswith('SIZE'): size = size[4:].strip()
                 
-            if size in ["S", "M", "L"]:
-                agg_items[merch][size] += qty
-            else:
-                agg_items[merch]["none"] += qty
+                qty = pd.to_numeric(item.get('SL', 0), errors='coerce')
+                qty = int(qty) if pd.notna(qty) else 0
+                
+                if size in ["S", "M", "L"]:
+                    agg_items[merch_key][size] += qty
+                else:
+                    agg_items[merch_key]["none"] += qty
 
-        # Ép thứ tự hiển thị
-        def user_merch_sort(m):
-            m_lower = m.lower()
-            if "áo thun" in m_lower: return 1
-            if "gối" in m_lower: return 2
-            if "package" in m_lower: return 3
-            return 4
-            
-        sorted_merch = sorted(agg_items.keys(), key=user_merch_sort)
-
-        # XÂY DỰNG BẢNG HTML CHO CHI TIẾT ĐƠN HÀNG (Y CHANG DEMO)
+        # 3. XÂY DỰNG BẢNG HTML CHO CHI TIẾT ĐƠN HÀNG
         table_html = "<table class='order-table'>"
         table_html += "<tr><th>Loại Merchandise</th><th>Lấy</th><th>S</th><th>M</th><th>L</th></tr>"
         
-        for merch in sorted_merch:
+        for merch in fixed_order_items:
             data = agg_items[merch]
-            total_qty = data["S"] + data["M"] + data["L"] + data["none"]
             
-            # Logic Tick & Số lượng cho loại ko size (VD: Gối Ômm)
             tick_html = ""
-            if total_qty > 0:
+            if data["has_item"]:
                 tick_html = "<span class='highlight-text'>✔</span>"
-                # Nếu mua Gối Ômm mà mua 2 cái thì hiện: ✔ (2) cho an toàn không bị lọt kho
+                # Hiển thị số lượng kèm theo nếu món không có size (VD mua 2 Gối Ômm)
                 if data["none"] > 1:
                     tick_html += f" <span class='highlight-text' style='font-size: 1.1rem;'>({data['none']})</span>"
 
@@ -304,7 +304,6 @@ if not df_all.empty and 'Loại Merchandise' in df_all.columns:
         merch = item["name"]
         processed_merch_names.append(merch.lower())
         
-        # Quét data lấy số liệu
         mask_completed = df_completed['Loại Merchandise'].str.contains(merch, case=False, na=False)
         merch_df_completed = df_completed[mask_completed]
         total_delivered = pd.to_numeric(merch_df_completed['SL'], errors='coerce').fillna(0).sum()
@@ -313,41 +312,12 @@ if not df_all.empty and 'Loại Merchandise' in df_all.columns:
         html_table += f"<td style='text-align: left; {gradient_style}'>{merch}</td>"
         html_table += f"<td style='{gradient_style}'>{int(total_delivered)}</td></tr>"
         
-        # Chèn các row Size (S, M, L) đã được ép cứng
         for sz in item["sizes"]:
-            # Lọc số lượng của Size tương ứng
             mask_size = merch_df_completed['Size áo'].astype(str).str.upper().str.replace('SIZE', '').str.strip() == sz
             size_delivered = pd.to_numeric(merch_df_completed[mask_size]['SL'], errors='coerce').fillna(0).sum()
             
             html_table += f"<tr style='border-bottom: 1px solid #eee;'>"
             html_table += f"<td style='text-align: left; padding: 8px 10px 8px 30px; color: #444; font-size: 0.95rem;'>↳ Size {sz}</td>"
-            html_table += f"<td style='padding: 8px;'>{int(size_delivered)}</td></tr>"
-
-    # 2. Xử lý bổ sung (Phòng hờ tương lai m nhập thêm Merchandise lạ vào file Sheet mà không có trong list cố định)
-    other_merch = [m for m in df_all['Loại Merchandise'].dropna().unique() 
-                   if not any(f in str(m).lower() for f in processed_merch_names)]
-                   
-    for merch in other_merch:
-        merch_df_completed = df_completed[df_completed['Loại Merchandise'] == merch]
-        total_delivered = pd.to_numeric(merch_df_completed['SL'], errors='coerce').fillna(0).sum()
-        
-        html_table += f"<tr style='background-color: #fef5fa; border-top: 1px solid #ddd;'>"
-        html_table += f"<td style='text-align: left; {gradient_style}'>{merch}</td>"
-        html_table += f"<td style='{gradient_style}'>{int(total_delivered)}</td></tr>"
-        
-        # Tự động list size nếu có
-        merch_df_all = df_all[df_all['Loại Merchandise'] == merch]
-        sizes = merch_df_all['Size áo'].dropna().unique() if 'Size áo' in merch_df_all.columns else []
-        valid_sizes = [s for s in sizes if str(s).strip() != '' and str(s).lower() != 'nan']
-        for sz in valid_sizes:
-            clean_sz = str(sz).strip().upper()
-            if clean_sz.startswith('SIZE'): clean_sz = clean_sz[4:].strip()
-            
-            mask_size = merch_df_completed['Size áo'].astype(str).str.upper().str.replace('SIZE', '').str.strip() == clean_sz
-            size_delivered = pd.to_numeric(merch_df_completed[mask_size]['SL'], errors='coerce').fillna(0).sum()
-            
-            html_table += f"<tr style='border-bottom: 1px solid #eee;'>"
-            html_table += f"<td style='text-align: left; padding: 8px 10px 8px 30px; color: #444; font-size: 0.95rem;'>↳ Size {clean_sz}</td>"
             html_table += f"<td style='padding: 8px;'>{int(size_delivered)}</td></tr>"
 
     html_table += "</table>"
