@@ -211,21 +211,21 @@ if "current_user" in st.session_state:
     with st.container(border=True):
         st.markdown(f"<div class='base-text'>MYêu: <span class='highlight-text'>{user_data['name']}</span></div>", unsafe_allow_html=True)
         
-        # 1. TẠO KHUNG CỐ ĐỊNH 3 MÓN (Ép thứ tự)
-        fixed_order_items = ["Áo thun MYÊU", "Gối Ômm", "ÔMM MYÊU Package"]
+        # 1. TẠO KHUNG CỐ ĐỊNH 3 MÓN ĐÃ ĐỔI THỨ TỰ (PACKAGE -> ÁO -> GỐI)
+        fixed_order_items = ["ÔMM MYÊU Package", "Áo thun MYÊU", "Gối Ômm"]
         agg_items = {
+            "ÔMM MYÊU Package": {"S": 0, "M": 0, "L": 0, "none": 0, "has_item": False},
             "Áo thun MYÊU": {"S": 0, "M": 0, "L": 0, "none": 0, "has_item": False},
-            "Gối Ômm": {"S": 0, "M": 0, "L": 0, "none": 0, "has_item": False},
-            "ÔMM MYÊU Package": {"S": 0, "M": 0, "L": 0, "none": 0, "has_item": False}
+            "Gối Ômm": {"S": 0, "M": 0, "L": 0, "none": 0, "has_item": False}
         }
 
         # 2. ĐỔ DỮ LIỆU VÀO KHUNG
         for item in user_data['items']:
             raw_merch = str(item['Loại Merchandise']).strip()
             merch_key = None
-            if "áo thun" in raw_merch.lower(): merch_key = "Áo thun MYÊU"
+            if "package" in raw_merch.lower(): merch_key = "ÔMM MYÊU Package"
+            elif "áo thun" in raw_merch.lower(): merch_key = "Áo thun MYÊU"
             elif "gối" in raw_merch.lower(): merch_key = "Gối Ômm"
-            elif "package" in raw_merch.lower(): merch_key = "ÔMM MYÊU Package"
             
             if merch_key:
                 agg_items[merch_key]["has_item"] = True
@@ -240,7 +240,7 @@ if "current_user" in st.session_state:
                 else:
                     agg_items[merch_key]["none"] += qty
 
-        # 3. XÂY DỰNG BẢNG HTML CHO CHI TIẾT ĐƠN HÀNG (CẬP NHẬT GỐI ÔMM)
+        # 3. XÂY DỰNG BẢNG HTML CHO CHI TIẾT ĐƠN HÀNG
         table_html = "<table class='order-table'>"
         table_html += "<tr><th>Loại Merchandise</th><th>Lấy</th><th>S</th><th>M</th><th>L</th></tr>"
         
@@ -306,11 +306,11 @@ if not df_all.empty and 'Loại Merchandise' in df_all.columns:
     html_table += "<th style='text-align: left; padding: 12px;'>Loại Merchandise</th>"
     html_table += "<th style='padding: 12px;'>Đã giao</th></tr>"
     
-    # 1. DANH SÁCH CHỐT CỨNG (Ép luôn luôn hiện đủ size S, M, L kể cả khi chưa có đơn)
+    # 1. DANH SÁCH CHỐT CỨNG ĐÃ ĐỔI THỨ TỰ (PACKAGE -> ÁO -> GỐI)
     fixed_merch_structure = [
+        {"name": "ÔMM MYÊU Package", "sizes": ["S", "M", "L"]},
         {"name": "Áo thun MYÊU", "sizes": ["S", "M", "L"]},
-        {"name": "Gối Ômm", "sizes": []},
-        {"name": "ÔMM MYÊU Package", "sizes": ["S", "M", "L"]}
+        {"name": "Gối Ômm", "sizes": []}
     ]
     
     processed_merch_names = []
