@@ -194,8 +194,10 @@ if st.button("Thông tin MYêu nhận Mer", use_container_width=True):
             target_phone = first_row['ĐT']
             target_order = first_row['Mã đơn hàng']
             target_name = first_row['Tên']
+            target_time = first_row['Thời Gian'] # Bắt theo thời gian
             
-            user_items = df_pending[(df_pending['ĐT'] == target_phone) & (df_pending['Mã đơn hàng'] == target_order)]
+            # CẬP NHẬT GOM ĐƠN THEO SĐT VÀ THỜI GIAN NHẬP LIỆU
+            user_items = df_pending[(df_pending['ĐT'] == target_phone) & (df_pending['Thời Gian'] == target_time)]
             row_indices = user_items.index.tolist()
             
             st.session_state.current_user = {
