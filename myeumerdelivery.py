@@ -117,6 +117,16 @@ st.markdown("""
         background: linear-gradient(90deg, #8B008B, #C71585) !important;
         box-shadow: 0px 4px 10px rgba(139, 0, 139, 0.4) !important;
     }
+
+    /* FIX RESPONSIVE ÉP FONT SIZE TRÊN ĐIỆN THOẠI Y CHANG APP CHECKER */
+    @media screen and (max-width: 768px) {
+        .main-title { font-size: 1.8rem; }
+        .section-title { font-size: 1.25rem; white-space: nowrap; }
+        .base-text { font-size: 1.1rem; }
+        .highlight-text { font-size: 1.15rem !important; }
+        .order-table th, .order-table td { padding: 6px; font-size: 0.95rem; }
+        .order-table td:first-child { font-size: 0.85rem; white-space: nowrap; } /* Ép Package lên 1 dòng */
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -230,33 +240,30 @@ if "current_user" in st.session_state:
                 else:
                     agg_items[merch_key]["none"] += qty
 
-        # 3. XÂY DỰNG BẢNG HTML CHO CHI TIẾT ĐƠN HÀNG
+        # 3. XÂY DỰNG BẢNG HTML CHO CHI TIẾT ĐƠN HÀNG (CẬP NHẬT GỐI ÔMM)
         table_html = "<table class='order-table'>"
         table_html += "<tr><th>Loại Merchandise</th><th>Lấy</th><th>S</th><th>M</th><th>L</th></tr>"
         
         for merch in fixed_order_items:
             data = agg_items[merch]
             
-            tick_html = ""
-            td_class = ""
-            
-            if data["has_item"]:
-                tick_html = "<span class='highlight-text'>✔</span>"
-                if data["none"] > 1:
-                    tick_html += f" <span class='highlight-text' style='font-size: 1.1rem;'>({data['none']})</span>"
-            else:
-                # Ép class disabled-text vào để chuyển xám và làm mờ chữ
-                td_class = "class='disabled-text'"
-
-            def fmt_qty(q):
-                return f"<span class='highlight-text'>{q}</span>" if q > 0 else ""
+            td_class = "" if data["has_item"] else "class='disabled-text'"
+            tick_html = "<span class='highlight-text'>✔</span>" if data["has_item"] else ""
                 
             table_html += "<tr>"
             table_html += f"<td {td_class}>{merch}</td>"
             table_html += f"<td>{tick_html}</td>"
-            table_html += f"<td>{fmt_qty(data['S'])}</td>"
-            table_html += f"<td>{fmt_qty(data['M'])}</td>"
-            table_html += f"<td>{fmt_qty(data['L'])}</td>"
+            
+            if merch == "Gối Ômm":
+                qty_val = data["none"]
+                qty_html = f"<span class='highlight-text'>{qty_val}</span>" if qty_val > 0 else ""
+                table_html += f"<td colspan='3'>{qty_html}</td>"
+            else:
+                def fmt_qty(q): return f"<span class='highlight-text'>{q}</span>" if q > 0 else ""
+                table_html += f"<td>{fmt_qty(data['S'])}</td>"
+                table_html += f"<td>{fmt_qty(data['M'])}</td>"
+                table_html += f"<td>{fmt_qty(data['L'])}</td>"
+                
             table_html += "</tr>"
             
         table_html += "</table>"
