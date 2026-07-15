@@ -270,6 +270,15 @@ if "current_user" in st.session_state:
             
         table_html += "</table>"
         st.markdown(table_html, unsafe_allow_html=True)
+        
+        # --- THÊM LỜI NHẮN NỔI BẬT NẾU CÓ PACKAGE ---
+        if agg_items["ÔMM MYÊU Package"]["has_item"]:
+            st.markdown("""
+                <div style="background-color: #fff0f5; border: 2px dashed #C71585; padding: 12px; text-align: center; border-radius: 8px; margin-bottom: 10px;">
+                    <span style="color: #C71585; font-weight: 900; font-size: 1.2rem;">🚨 NHỚ LẤY VEIL CHO KHÁCH 🚨</span><br>
+                    <span style="color: #8B008B; font-weight: bold; font-size: 1rem;">(QUÀ TẶNG THEO PACKAGE)</span>
+                </div>
+            """, unsafe_allow_html=True)
     
     st.markdown("---")
     photo = st.file_uploader("Chụp hóa đơn/bằng chứng", type=['png', 'jpg', 'jpeg'])
