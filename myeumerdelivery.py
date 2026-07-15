@@ -136,7 +136,6 @@ st.markdown("---")
 
 # --- KẾT NỐI API & UPLOAD ---
 OUTPUT_SHEET_URL = "https://docs.google.com/spreadsheets/d/1zSeYfiaSFJNdXMOZnwG7WsW0b33v-rbt0EruvMS_aA0/edit"
-# LINK APPS SCRIPT THẬT CỦA M:
 LINK_WEB_APP = "https://script.google.com/macros/s/AKfycbwK7XqRKonpA1FqU1fhoXh4BWbQCHyInVibnutuM0aZzWkaozezKXojDF4xDSCaNlQ43g/exec" 
 
 @st.cache_resource
@@ -194,9 +193,8 @@ if st.button("Thông tin MYêu nhận Mer", use_container_width=True):
             target_phone = first_row['ĐT']
             target_order = first_row['Mã đơn hàng']
             target_name = first_row['Tên']
-            target_time = first_row['Thời Gian'] # Bắt theo thời gian
+            target_time = first_row['Thời Gian']
             
-            # CẬP NHẬT GOM ĐƠN THEO SĐT VÀ THỜI GIAN NHẬP LIỆU
             user_items = df_pending[(df_pending['ĐT'] == target_phone) & (df_pending['Thời Gian'] == target_time)]
             row_indices = user_items.index.tolist()
             
@@ -213,7 +211,6 @@ if "current_user" in st.session_state:
     with st.container(border=True):
         st.markdown(f"<div class='base-text'>MYêu: <span class='highlight-text'>{user_data['name']}</span></div>", unsafe_allow_html=True)
         
-        # 1. TẠO KHUNG CỐ ĐỊNH 3 MÓN ĐÃ ĐỔI THỨ TỰ (PACKAGE -> ÁO -> GỐI)
         fixed_order_items = ["ÔMM MYÊU Package", "Áo thun MYÊU", "Gối Ômm"]
         agg_items = {
             "ÔMM MYÊU Package": {"S": 0, "M": 0, "L": 0, "none": 0, "has_item": False},
@@ -221,7 +218,6 @@ if "current_user" in st.session_state:
             "Gối Ômm": {"S": 0, "M": 0, "L": 0, "none": 0, "has_item": False}
         }
 
-        # 2. ĐỔ DỮ LIỆU VÀO KHUNG
         for item in user_data['items']:
             raw_merch = str(item['Loại Merchandise']).strip()
             merch_key = None
@@ -242,7 +238,6 @@ if "current_user" in st.session_state:
                 else:
                     agg_items[merch_key]["none"] += qty
 
-        # 3. XÂY DỰNG BẢNG HTML CHO CHI TIẾT ĐƠN HÀNG
         table_html = "<table class='order-table'>"
         table_html += "<tr><th>Loại Merchandise</th><th>Lấy</th><th>S</th><th>M</th><th>L</th></tr>"
         
@@ -271,12 +266,38 @@ if "current_user" in st.session_state:
         table_html += "</table>"
         st.markdown(table_html, unsafe_allow_html=True)
         
-        # --- THÊM LỜI NHẮN NỔI BẬT NẾU CÓ PACKAGE ---
+        # --- LOGIC TÍNH TỔNG SỐ LƯỢNG MÓN CẦN BỐC ---
         if agg_items["ÔMM MYÊU Package"]["has_item"]:
-            st.markdown("""
+            total_veils = (agg_items["ÔMM MYÊU Package"]["S"] + 
+                           agg_items["ÔMM MYÊU Package"]["M"] + 
+                           agg_items["ÔMM MYÊU Package"]["L"] + 
+                           agg_items["ÔMM MYÊU Package"]["none"])
+            
+            total_goi = (agg_items["Gối Ômm"]["none"] + 
+                         agg_items["Gối Ômm"]["S"] + 
+                         agg_items["Gối Ômm"]["M"] + 
+                         agg_items["Gối Ômm"]["L"] + 
+                         total_veils)
+            
+            total_ao_s = agg_items["Áo thun MYÊU"]["S"] + agg_items["ÔMM MYÊU Package"]["S"]
+            total_ao_m = agg_items["Áo thun MYÊU"]["M"] + agg_items["ÔMM MYÊU Package"]["M"]
+            total_ao_l = agg_items["Áo thun MYÊU"]["L"] + agg_items["ÔMM MYÊU Package"]["L"]
+            total_ao_none = agg_items["Áo thun MYÊU"]["none"] + agg_items["ÔMM MYÊU Package"]["none"]
+            
+            pick_list = []
+            if total_veils > 0: pick_list.append(f"{total_veils} VEIL")
+            if total_ao_s > 0: pick_list.append(f"{total_ao_s} ÁO THUN SIZE S")
+            if total_ao_m > 0: pick_list.append(f"{total_ao_m} ÁO THUN SIZE M")
+            if total_ao_l > 0: pick_list.append(f"{total_ao_l} ÁO THUN SIZE L")
+            if total_ao_none > 0: pick_list.append(f"{total_ao_none} ÁO THUN")
+            if total_goi > 0: pick_list.append(f"{total_goi} GỐI ÔMM")
+            
+            pick_str = ", ".join(pick_list)
+            
+            st.markdown(f"""
                 <div style="background-color: #fff0f5; border: 2px dashed #C71585; padding: 12px; text-align: center; border-radius: 8px; margin-bottom: 10px;">
-                    <span style="color: #C71585; font-weight: 900; font-size: 1.2rem;">🚨 NHỚ LẤY VEIL CHO KHÁCH 🚨</span><br>
-                    <span style="color: #8B008B; font-weight: bold; font-size: 1rem;">(QUÀ TẶNG THEO PACKAGE)</span>
+                    <span style="color: #C71585; font-weight: 900; font-size: 1.1rem;">🚨 TỔNG CỘNG CẦN LẤY 🚨</span><br>
+                    <span style="color: #8B008B; font-weight: 900; font-size: 1.25rem;">LẤY {pick_str}</span>
                 </div>
             """, unsafe_allow_html=True)
     
@@ -317,7 +338,6 @@ if not df_all.empty and 'Loại Merchandise' in df_all.columns:
     html_table += "<th style='text-align: left; padding: 12px;'>Loại Merchandise</th>"
     html_table += "<th style='padding: 12px;'>Đã giao</th></tr>"
     
-    # 1. DANH SÁCH CHỐT CỨNG ĐÃ ĐỔI THỨ TỰ (PACKAGE -> ÁO -> GỐI)
     fixed_merch_structure = [
         {"name": "ÔMM MYÊU Package", "sizes": ["S", "M", "L"]},
         {"name": "Áo thun MYÊU", "sizes": ["S", "M", "L"]},
