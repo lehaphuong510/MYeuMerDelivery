@@ -320,7 +320,7 @@ if "current_user" in st.session_state:
                         sheet.update_cell(sheet_row, 9, "Completed") 
                         sheet.update_cell(sheet_row, 10, img_url)    
                         
-                    st.success("✅ Đã hoàn tất giao hàng và ghi nhận lên hệ thống!")
+                    st.success("✅ Đã cập nhật hệ thống thành công")
                     del st.session_state.current_user
                     st.rerun() 
                 else:
