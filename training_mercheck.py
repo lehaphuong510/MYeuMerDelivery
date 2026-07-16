@@ -22,7 +22,7 @@ if "just_delivered" not in st.session_state:
 VALID_PASSWORDS = {"CHECKIN-AN": "An", "CHECKIN-BINH": "Bình", "CHECKIN-CHAU": "Châu", "0519": "Lê Phương"}
 
 if not st.session_state.authenticated:
-    st.markdown("### 🔒 Cổng kiểm soát nội bộ (Trạm Nhập Liệu - TRAINING)")
+    st.markdown("### 🔒 Đăng nhập Trạm Nhập Liệu - TRAINING")
     password = st.text_input("Nhập mã truy cập cá nhân:", type="password")
     
     if st.button("Đăng nhập"):
