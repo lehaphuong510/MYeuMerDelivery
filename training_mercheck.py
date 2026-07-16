@@ -19,7 +19,7 @@ if "success_msg" not in st.session_state:
 if "just_delivered" not in st.session_state:
     st.session_state.just_delivered = False
 
-VALID_PASSWORDS = {"123456": "An", "CHECKIN-BINH": "Bình", "CHECKIN-CHAU": "Châu", "0519": "Lê Phương"}
+VALID_PASSWORDS = {"CHECKIN-AN": "An", "CHECKIN-BINH": "Bình", "CHECKIN-CHAU": "Châu", "0519": "Lê Phương"}
 
 if not st.session_state.authenticated:
     st.markdown("### 🔒 Cổng kiểm soát nội bộ (Trạm Nhập Liệu - TRAINING)")
@@ -147,8 +147,9 @@ if st.session_state.success_msg:
     st.session_state.success_msg = "" 
 
 # --- THIẾT LẬP DỮ LIỆU SANDBOX TRAINING ---
-GSHEET_URL = "https://docs.google.com/spreadsheets/d/1xOqEwHUEejVSL48IzKl9iF13INaXe5HJHVHw7Ntbi_w/edit?usp=sharing"
-OUTPUT_SHEET_URL = "https://docs.google.com/spreadsheets/d/1viDJnVsHejc6kHQm-fhNJA56_KkFwhztjkQrXZIaws0/edit?usp=sharing"
+# Đổi về link /edit chuẩn, gspread sẽ lo phần kết nối
+GSHEET_URL = "https://docs.google.com/spreadsheets/d/1xOqEwHUEejVSL48IzKl9iF13INaXe5HJHVHw7Ntbi_w/edit"
+OUTPUT_SHEET_URL = "https://docs.google.com/spreadsheets/d/1viDJnVsHejc6kHQm-fhNJA56_KkFwhztjkQrXZIaws0/edit"
 
 # --- KẾT NỐI GOOGLE SHEETS API ---
 @st.cache_resource
@@ -162,12 +163,20 @@ client = get_gspread_client()
 @st.cache_data(ttl=5)
 def load_main_data():
     try:
-        df = pd.read_csv(GSHEET_URL, dtype=str)
-        df.columns = df.columns.str.strip()
-        if '4 Số đuôi' in df.columns: df['4 Số đuôi'] = df['4 Số đuôi'].str.replace('.0', '', regex=False).str.zfill(4)
-        if 'ĐT' in df.columns: df['ĐT'] = df['ĐT'].str.replace('.0', '', regex=False)
-        return df
-    except Exception:
+        # DÙNG API GSPREAD ĐỌC DỮ LIỆU ĐẦU VÀO LUÔN CHO CHUẨN XÁC
+        sheet = client.open_by_url(GSHEET_URL).sheet1
+        records = sheet.get_all_records()
+        if records:
+            df = pd.DataFrame(records)
+            df.columns = df.columns.astype(str).str.strip()
+            if '4 Số đuôi' in df.columns: 
+                df['4 Số đuôi'] = df['4 Số đuôi'].astype(str).str.replace('.0', '', regex=False).str.zfill(4)
+            if 'ĐT' in df.columns: 
+                df['ĐT'] = df['ĐT'].astype(str).str.replace('.0', '', regex=False)
+            return df
+        return pd.DataFrame()
+    except Exception as e:
+        st.error(f"Lỗi API đọc Data Đầu Vào: {e}")
         return pd.DataFrame()
 
 def load_delivered_data():
@@ -176,7 +185,7 @@ def load_delivered_data():
         records = sheet.get_all_records()
         if records:
             df = pd.DataFrame(records)
-            df.columns = df.columns.str.strip()
+            df.columns = df.columns.astype(str).str.strip()
             return df
         return pd.DataFrame(columns=["Thời Gian", "ĐT", "Tên", "Mã đơn hàng", "Loại Merchandise", "Size áo", "SL", "Người Giao", "Status", "Link hình"])
     except Exception:
@@ -196,9 +205,8 @@ if st.button("Tìm giúp MYêu"):
     st.session_state.just_delivered = False 
 
 if st.session_state.search_query:
-    # --- ĐOẠN CODE PHÒNG THỦ MỚI ---
     if df_main.empty or 'Mã đơn hàng' not in df_main.columns:
-        st.error("⚠️ Hệ thống chưa tải được dữ liệu Đầu Vào. Vui lòng kiểm tra lại quyền Share Public của file Sheet Input!")
+        st.error("⚠️ Hệ thống chưa tải được dữ liệu Đầu Vào. Vui lòng kiểm tra lại quyền truy cập của Service Account!")
     else:
         clean_input = st.session_state.search_query.replace(" ", "").upper()
         df_main['Mã_Search'] = df_main['Mã đơn hàng'].astype(str).str.strip().str.replace(" ", "").str.upper()
@@ -352,7 +360,6 @@ st.markdown("---")
 st.markdown('<div class="section-title">📊 THỐNG KÊ KHO MERCHANDISE</div>', unsafe_allow_html=True)
 
 if not df_main.empty:
-    # --- ĐOẠN CODE PHÒNG THỦ CỘT SL TỪ LẦN TRƯỚC ---
     if 'SL' not in df_main.columns:
         df_main['SL'] = 0
     df_main['SL'] = pd.to_numeric(df_main['SL'], errors='coerce').fillna(0)
