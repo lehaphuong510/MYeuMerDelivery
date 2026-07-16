@@ -135,7 +135,7 @@ st.caption(f"🏃 Đang trực trạm giao hàng: **{st.session_state.picker_id}
 st.markdown("---")
 
 # --- KẾT NỐI API & UPLOAD ---
-OUTPUT_SHEET_URL = "https://docs.google.com/spreadsheets/d/1viDJnVsHejc6kHQm-fhNJA56_KkFwhztjkQrXZIaws0/edit"
+OUTPUT_SHEET_URL = "https://docs.google.com/spreadsheets/d/1viDJnVsHejc6kHQm-fhNJA56_KkFwhztjkQrXZIaws0/edit?usp=sharing"
 LINK_WEB_APP = "https://script.google.com/macros/s/AKfycbwK7XqRKonpA1FqU1fhoXh4BWbQCHyInVibnutuM0aZzWkaozezKXojDF4xDSCaNlQ43g/exec" 
 
 @st.cache_resource
