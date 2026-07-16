@@ -148,7 +148,7 @@ if st.session_state.success_msg:
 
 # --- THIẾT LẬP DỮ LIỆU ---
 GSHEET_URL = "https://docs.google.com/spreadsheets/d/1xOqEwHUEejVSL48IzKl9iF13INaXe5HJHVHw7Ntbi_w/edit?usp=sharing"
-OUTPUT_SHEET_URL = "https://docs.google.com/spreadsheets/d/1viDJnVsHejc6kHQm-fhNJA56_KkFwhztjkQrXZIaws0/edit"
+OUTPUT_SHEET_URL = "https://docs.google.com/spreadsheets/d/1viDJnVsHejc6kHQm-fhNJA56_KkFwhztjkQrXZIaws0/edit?usp=sharing"
 
 # --- KẾT NỐI GOOGLE SHEETS API ---
 @st.cache_resource
