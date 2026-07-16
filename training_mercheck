@@ -1,0 +1,437 @@
+import streamlit as st
+import pandas as pd
+import time
+from datetime import datetime, timedelta
+import gspread
+from google.oauth2.service_account import Credentials
+
+# --- CẤU HÌNH BẢO MẬT & SESSION ---
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
+if "admin_id" not in st.session_state:
+    st.session_state.admin_id = ""
+if "search_query" not in st.session_state:
+    st.session_state.search_query = ""
+if "input_counter" not in st.session_state: # Thêm biến đếm để reset ô input
+    st.session_state.input_counter = 0
+if "success_msg" not in st.session_state:
+    st.session_state.success_msg = ""
+if "just_delivered" not in st.session_state:
+    st.session_state.just_delivered = False
+
+VALID_PASSWORDS = {"CHECKIN-AN": "An", "CHECKIN-BINH": "Bình", "CHECKIN-CHAU": "Châu", "0519": "Lê Phương"}
+
+if not st.session_state.authenticated:
+    st.markdown("### 🔒 Cổng kiểm soát nội bộ (Trạm Nhập Liệu)")
+    password = st.text_input("Nhập mã truy cập cá nhân:", type="password")
+    
+    if st.button("Đăng nhập"):
+        if password in VALID_PASSWORDS: 
+            st.session_state.authenticated = True
+            st.session_state.admin_id = VALID_PASSWORDS[password] 
+            st.rerun()
+        else:
+            st.error("Mã không hợp lệ hoặc đã bị vô hiệu hóa!")
+    st.stop()
+
+# --- CẤU HÌNH GIAO DIỆN ---
+st.set_page_config(page_title="MYÊU MERCHANDISE - CHECKER", page_icon="🔎", layout="centered")
+
+st.markdown("""
+<style>
+    .main-title {
+        color: #C71585;
+        text-shadow: 2px 2px 0px #e6d3d3, 4px 4px 5px rgba(0,0,0,0.4);
+        text-align: left;
+        font-weight: 900;
+        font-size: 2.5rem;
+        line-height: 1.2;
+        margin-bottom: 25px;
+    }
+    .main-title span { display: block; white-space: nowrap; }
+    
+    .base-text {
+        font-size: 1.25rem;
+        font-weight: bold;
+        color: inherit;
+    }
+    
+    .highlight-text { 
+        background: linear-gradient(90deg, #C71585, #8B008B);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-weight: 900 !important; 
+        font-size: 1.25rem !important;
+    }
+    
+    .section-title {
+        background: linear-gradient(90deg, #C71585, #8B008B);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-weight: 900;
+        font-size: 1.8rem;
+        margin-top: 20px;
+        margin-bottom: 15px;
+        text-align: left;
+    }
+    
+    /* BẢNG ĐƠN HÀNG */
+    .order-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-family: sans-serif;
+        margin-top: 15px;
+        margin-bottom: 20px;
+    }
+    .order-table th {
+        background: linear-gradient(90deg, #8B008B, #C71585);
+        color: white;
+        padding: 12px;
+        text-align: center;
+        font-size: 1.1rem;
+    }
+    .order-table th:first-child { text-align: left; }
+    .order-table td {
+        padding: 12px;
+        text-align: center;
+        border-bottom: 1px dotted #C71585;
+    }
+    .order-table td:first-child {
+        text-align: left;
+        color: #5a104a; 
+        font-weight: bold;
+        font-size: 1.1rem;
+    }
+    .order-table td.disabled-text {
+        color: #c0c0c0 !important;
+        font-weight: normal !important;
+    }
+
+    /* CUSTOM NÚT BẤM */
+    div.stButton > button {
+        background: linear-gradient(90deg, #C71585, #8B008B) !important;
+        color: white !important;
+        border: none !important;
+        font-weight: bold !important;
+        border-radius: 8px !important;
+        transition: 0.3s;
+    }
+    div.stButton > button:hover {
+        background: linear-gradient(90deg, #8B008B, #C71585) !important;
+        box-shadow: 0px 4px 10px rgba(139, 0, 139, 0.4) !important;
+    }
+    div.stButton > button:disabled, div.stButton > button[disabled] {
+        background: linear-gradient(90deg, #C71585, #8B008B) !important;
+        color: white !important;
+        opacity: 0.8 !important;
+        border: none !important;
+    }
+    
+    /* FIX RESPONSIVE ÉP FONT SIZE TRÊN ĐIỆN THOẠI Y CHANG APP PICKER */
+    @media screen and (max-width: 768px) {
+        .main-title { font-size: 1.8rem; }
+        .section-title { font-size: 1.25rem; white-space: nowrap; }
+        .base-text { font-size: 1.1rem; }
+        .highlight-text { font-size: 1.15rem !important; }
+        .order-table th, .order-table td { padding: 6px; font-size: 0.95rem; }
+        .order-table td:first-child { font-size: 0.85rem; white-space: nowrap; } /* Ép Package lên 1 dòng */
+    }
+</style>
+""", unsafe_allow_html=True)
+
+st.markdown('<div class="main-title"><span>MYÊU MERCHANDISE</span><span>PICK AT EVENT</span></div>', unsafe_allow_html=True)
+st.caption(f"👤 Đang trực ca: **{st.session_state.admin_id}**")
+
+if st.session_state.success_msg:
+    st.success(st.session_state.success_msg)
+    st.session_state.success_msg = "" 
+
+# --- THIẾT LẬP DỮ LIỆU ---
+GSHEET_URL = "https://docs.google.com/spreadsheets/d/1xOqEwHUEejVSL48IzKl9iF13INaXe5HJHVHw7Ntbi_w/export?format=csv&gid=0"
+OUTPUT_SHEET_URL = "https://docs.google.com/spreadsheets/d/1viDJnVsHejc6kHQm-fhNJA56_KkFwhztjkQrXZIaws0/edit"
+
+# --- KẾT NỐI GOOGLE SHEETS API ---
+@st.cache_resource
+def get_gspread_client():
+    scopes = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
+    creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scopes)
+    return gspread.authorize(creds)
+
+client = get_gspread_client()
+
+@st.cache_data(ttl=5)
+def load_main_data():
+    try:
+        df = pd.read_csv(GSHEET_URL, dtype=str)
+        df.columns = df.columns.str.strip()
+        if '4 Số đuôi' in df.columns: df['4 Số đuôi'] = df['4 Số đuôi'].str.replace('.0', '', regex=False).str.zfill(4)
+        if 'ĐT' in df.columns: df['ĐT'] = df['ĐT'].str.replace('.0', '', regex=False)
+        return df
+    except Exception as e:
+        st.error("Chưa kết nối được Google Sheet Đầu Vào.")
+        return pd.DataFrame()
+
+def load_delivered_data():
+    try:
+        sheet = client.open_by_url(OUTPUT_SHEET_URL).sheet1
+        records = sheet.get_all_records()
+        if records:
+            df = pd.DataFrame(records)
+            df.columns = df.columns.str.strip()
+            return df
+        return pd.DataFrame(columns=["Thời Gian", "ĐT", "Tên", "Mã đơn hàng", "Loại Merchandise", "Size áo", "SL", "Người Giao", "Status", "Link hình"])
+    except Exception as e:
+        return pd.DataFrame(columns=["Thời Gian", "ĐT", "Tên", "Mã đơn hàng", "Loại Merchandise", "Size áo", "SL", "Người Giao", "Status", "Link hình"])
+
+df_main = load_main_data()
+df_delivered = load_delivered_data()
+
+# --- TÍNH NĂNG TÌM KIẾM ---
+search_mode = st.radio("Chọn chế độ tìm kiếm:", ["Tìm theo Mã đơn hàng", "Tìm theo Số điện thoại"], horizontal=True)
+
+# Gắn key động vào ô nhập liệu để tự reset sau mỗi lần check thành công
+search_input = st.text_input("Nhập thông tin tìm kiếm vào đây", key=f"search_input_{st.session_state.input_counter}", label_visibility="collapsed")
+
+if st.button("Tìm giúp MYêu"):
+    st.session_state.search_query = search_input
+    st.session_state.search_mode = search_mode 
+    st.session_state.just_delivered = False 
+
+if st.session_state.search_query:
+    clean_input = st.session_state.search_query.replace(" ", "").upper()
+    df_main['Mã_Search'] = df_main['Mã đơn hàng'].astype(str).str.strip().str.replace(" ", "").str.upper()
+    df_main['SĐT_Clean'] = df_main['ĐT'].astype(str).str.replace(" ", "", regex=False).str.lstrip("0")
+    df_main['4_Số_Cuối'] = df_main['SĐT_Clean'].str[-4:]
+    
+    if st.session_state.search_mode == "Tìm theo Mã đơn hàng":
+        if len(clean_input) <= 3: matched_df = df_main[df_main['Mã_Search'].str.endswith(clean_input, na=False)]
+        else: matched_df = df_main[df_main['Mã_Search'].str.contains(clean_input, na=False)]
+    else:
+        matched_df = df_main[df_main['4_Số_Cuối'].str.endswith(clean_input, na=False) | df_main['SĐT_Clean'].str.contains(clean_input, na=False)]
+
+    if matched_df.empty:
+        st.warning("Không tìm thấy thông tin phù hợp!")
+    else:
+        is_duplicate = False
+        if st.session_state.search_mode == "Tìm theo Số điện thoại":
+            if len(matched_df['ĐT'].unique()) > 1: is_duplicate = True
+
+        if is_duplicate:
+            st.error("⚠️ Có nhiều người trùng 4 số đuôi này! Vui lòng nhập FULL Số điện thoại.")
+        else:
+            user_name = matched_df.iloc[0].get('Tên', 'Không rõ')
+            
+            with st.container(border=True):
+                # Hiển thị Tên
+                st.markdown(f"<div class='base-text'>MYêu: <span class='highlight-text'>{user_name}</span></div>", unsafe_allow_html=True)
+                
+                # Hiển thị SĐT / Mã đơn hàng linh hoạt
+                if st.session_state.search_mode == "Tìm theo Mã đơn hàng":
+                    phones = matched_df['ĐT'].unique()
+                    phone_str = ", ".join(["xxx" + str(p)[-4:] if len(str(p)) >= 4 else "xxx" + str(p) for p in phones])
+                    st.markdown(f"<div class='base-text'>SĐT: <span class='highlight-text'>{phone_str}</span></div>", unsafe_allow_html=True)
+                else:
+                    orders = matched_df['Mã đơn hàng'].unique()
+                    order_str = ", ".join([str(o) for o in orders if str(o).lower() != 'nan'])
+                    st.markdown(f"<div class='base-text'>Mã ĐH: <span class='highlight-text'>{order_str}</span></div>", unsafe_allow_html=True)
+
+                # KIỂM TRA TRẠNG THÁI GIAO HÀNG
+                if not df_delivered.empty and 'ĐT' in df_delivered.columns:
+                    df_delivered['ĐT_Clean'] = df_delivered['ĐT'].astype(str).str.strip().str.lstrip("0").str.replace(".0", "", regex=False)
+                    df_delivered['Merch_Clean'] = df_delivered['Loại Merchandise'].astype(str).str.strip()
+                    df_delivered['Size_Clean'] = df_delivered['Size áo'].astype(str).str.strip().str.replace("nan", "", case=False)
+                
+                delivered_count = 0
+                items_to_append = []
+                
+                for _, row in matched_df.iterrows():
+                    phone_val = str(row['ĐT']).strip().lstrip("0").replace(".0", "")
+                    merch_val = str(row.get('Loại Merchandise', '')).strip()
+                    size_val = str(row.get('Size áo', '')).strip()
+                    if size_val.lower().startswith('size'): size_val = size_val[4:].strip()
+                    if size_val.lower() == 'nan': size_val = ""
+                    
+                    is_item_delivered = False
+                    if not df_delivered.empty and 'ĐT_Clean' in df_delivered.columns:
+                        check = df_delivered[(df_delivered['ĐT_Clean'] == phone_val) & 
+                                             (df_delivered['Merch_Clean'] == merch_val) & 
+                                             (df_delivered['Size_Clean'] == size_val)]
+                        if not check.empty:
+                            is_item_delivered = True
+                            delivered_count += 1
+                            
+                    if not is_item_delivered:
+                        items_to_append.append(row)
+
+                # CHUẨN BỊ DATA CHO BẢNG SẢN PHẨM ĐÃ ĐẢO THỨ TỰ
+                fixed_order_items = ["ÔMM MYÊU Package", "Áo thun MYÊU", "Gối Ômm"]
+                agg_items = {
+                    "ÔMM MYÊU Package": {"S": 0, "M": 0, "L": 0, "none": 0, "has_item": False},
+                    "Áo thun MYÊU": {"S": 0, "M": 0, "L": 0, "none": 0, "has_item": False},
+                    "Gối Ômm": {"S": 0, "M": 0, "L": 0, "none": 0, "has_item": False}
+                }
+
+                for _, item in matched_df.iterrows():
+                    raw_merch = str(item.get('Loại Merchandise', '')).strip()
+                    merch_key = None
+                    if "package" in raw_merch.lower(): merch_key = "ÔMM MYÊU Package"
+                    elif "áo thun" in raw_merch.lower(): merch_key = "Áo thun MYÊU"
+                    elif "gối" in raw_merch.lower(): merch_key = "Gối Ômm"
+                    
+                    if merch_key:
+                        agg_items[merch_key]["has_item"] = True
+                        size = str(item.get('Size áo', '')).strip().upper()
+                        if size.startswith('SIZE'): size = size[4:].strip()
+                        qty = pd.to_numeric(item.get('SL', 0), errors='coerce')
+                        qty = int(qty) if pd.notna(qty) else 0
+                        
+                        if size in ["S", "M", "L"]: agg_items[merch_key][size] += qty
+                        else: agg_items[merch_key]["none"] += qty
+
+                # VẼ BẢNG KẾT QUẢ
+                table_html = "<table class='order-table'>"
+                table_html += "<tr><th>Loại Merchandise</th><th>Lấy</th><th>S</th><th>M</th><th>L</th></tr>"
+                for merch in fixed_order_items:
+                    data = agg_items[merch]
+                    td_class = "" if data["has_item"] else "class='disabled-text'"
+                    tick_html = "<span class='highlight-text'>✔</span>" if data["has_item"] else ""
+                        
+                    table_html += "<tr>"
+                    table_html += f"<td {td_class}>{merch}</td>"
+                    table_html += f"<td>{tick_html}</td>"
+                    
+                    if merch == "Gối Ômm":
+                        qty_val = data["none"]
+                        qty_html = f"<span class='highlight-text'>{qty_val}</span>" if qty_val > 0 else ""
+                        table_html += f"<td colspan='3'>{qty_html}</td>"
+                    else:
+                        def fmt_qty(q): return f"<span class='highlight-text'>{q}</span>" if q > 0 else ""
+                        table_html += f"<td>{fmt_qty(data['S'])}</td>"
+                        table_html += f"<td>{fmt_qty(data['M'])}</td>"
+                        table_html += f"<td>{fmt_qty(data['L'])}</td>"
+                        
+                    table_html += "</tr>"
+                table_html += "</table>"
+                st.markdown(table_html, unsafe_allow_html=True)
+
+                # NÚT GOM ĐƠN BẤM 1 LẦN 
+                if delivered_count == len(matched_df) and not st.session_state.just_delivered:
+                    st.button("✅ Đã Check", key="done_btn", disabled=True, use_container_width=True)
+                else:
+                    if st.button("Check", key="check_btn", use_container_width=True):
+                        with st.spinner("Đang ghi nhận vào hệ thống..."):
+                            sheet = client.open_by_url(OUTPUT_SHEET_URL).sheet1
+                            current_time = (datetime.utcnow() + timedelta(hours=7)).strftime("%Y-%m-%d %H:%M:%S")
+                            
+                            rows_data = []
+                            for row in items_to_append:
+                                size_val = str(row.get('Size áo', '')).strip()
+                                if size_val.lower().startswith('size'): size_val = size_val[4:].strip()
+                                if size_val.lower() == 'nan': size_val = ""
+                                
+                                rows_data.append([
+                                    current_time, 
+                                    str(row['ĐT']), 
+                                    str(row.get('Tên', '')), 
+                                    str(row.get('Mã đơn hàng', '')), 
+                                    str(row.get('Loại Merchandise', '')), 
+                                    size_val, 
+                                    str(row.get('SL', '0')), 
+                                    st.session_state.admin_id, 
+                                    "Pending", 
+                                    ""
+                                ])
+                            
+                            if rows_data:
+                                sheet.append_rows(rows_data) 
+                                
+                        st.session_state.success_msg = "✅ Đã ghi nhận thành công toàn bộ đơn!"
+                        
+                        # --- CLEAR THÔNG TIN SAU KHI CHECK THÀNH CÔNG BẰNG CÁCH NHẢY KEY ---
+                        st.session_state.search_query = ""          # Xóa bộ nhớ truy vấn để đóng bảng
+                        st.session_state.input_counter += 1         # Tăng biến đếm để tạo ô input mới trắng bóc
+                        
+                        st.session_state.just_delivered = True 
+                        st.rerun()
+
+# --- THỐNG KÊ KHO ---
+st.markdown("---")
+st.markdown('<div class="section-title">📊 THỐNG KÊ KHO MERCHANDISE</div>', unsafe_allow_html=True)
+
+if not df_main.empty:
+    df_main['SL'] = pd.to_numeric(df_main.get('SL', 0), errors='coerce').fillna(0)
+    
+    html_table = "<table style='width: 100%; border-collapse: collapse; font-family: sans-serif; text-align: center; margin-bottom: 20px;'>"
+    html_table += "<tr style='border-bottom: 2px solid #8B008B; color: #8B008B; background-color: #f9f9f9;'>"
+    html_table += "<th style='text-align: left; padding: 12px;'>Loại Merchandise</th>"
+    html_table += "<th style='padding: 12px;'>Tổng SL</th>"
+    html_table += "<th style='padding: 12px;'>Đã check</th>"
+    html_table += "<th style='padding: 12px;'>Còn lại</th></tr>"
+    
+    # HÀM ÉP THỨ TỰ CHO BẢNG THỐNG KÊ (PACKAGE -> ÁO -> GỐI)
+    def custom_sort_merch(m):
+        m_lower = str(m).lower()
+        if "package" in m_lower: return 1
+        elif "áo thun" in m_lower: return 2
+        elif "gối" in m_lower: return 3
+        else: return 4
+        
+    merch_list = df_main.get('Loại Merchandise', pd.Series(dtype=str)).dropna().unique().tolist()
+    merch_list.sort(key=custom_sort_merch)
+    
+    for merch in merch_list:
+        merch_df = df_main[df_main['Loại Merchandise'] == merch]
+        total_sl = merch_df['SL'].sum()
+        
+        sizes = merch_df['Size áo'].dropna().unique() if 'Size áo' in merch_df.columns else []
+        valid_sizes = [s for s in sizes if str(s).strip() != '' and str(s).lower() != 'nan']
+        
+        def clean_size_for_sort(sz):
+            sz = str(sz).strip()
+            if sz.lower().startswith('size'): sz = sz[4:].strip()
+            return sz.upper()
+            
+        size_order = {"S": 1, "M": 2, "L": 3, "XL": 4, "XXL": 5}
+        valid_sizes.sort(key=lambda x: size_order.get(clean_size_for_sort(x), 99))
+        
+        size_rows_html = ""
+        total_delivered_for_merch = 0
+        
+        for raw_size in valid_sizes:
+            clean_size = clean_size_for_sort(raw_size)
+            size_sl = merch_df[merch_df['Size áo'] == raw_size]['SL'].sum()
+            
+            size_delivered = 0
+            if not df_delivered.empty and 'Loại Merchandise' in df_delivered.columns:
+                mask = (df_delivered['Loại Merchandise'].astype(str).str.strip() == merch) & \
+                       (df_delivered['Size áo'].astype(str).str.strip().str.replace("nan", "", case=False) == clean_size)
+                size_delivered = pd.to_numeric(df_delivered[mask]['SL'], errors='coerce').fillna(0).sum()
+            
+            size_remain = size_sl - size_delivered
+            total_delivered_for_merch += size_delivered
+            
+            size_rows_html += f"<tr style='border-bottom: 1px solid #eee;'>"
+            size_rows_html += f"<td style='text-align: left; padding: 8px 10px 8px 30px; color: #444; font-size: 0.95rem;'>↳ Size {clean_size}</td>"
+            size_rows_html += f"<td style='padding: 8px;'>{int(size_sl)}</td>"
+            size_rows_html += f"<td style='padding: 8px;'>{int(size_delivered)}</td>"
+            size_rows_html += f"<td style='padding: 8px;'>{int(size_remain)}</td></tr>"
+            
+        if not valid_sizes:
+            no_size_delivered = 0
+            if not df_delivered.empty and 'Loại Merchandise' in df_delivered.columns:
+                mask = df_delivered['Loại Merchandise'].astype(str).str.strip() == merch
+                no_size_delivered = pd.to_numeric(df_delivered[mask]['SL'], errors='coerce').fillna(0).sum()
+            total_delivered_for_merch += no_size_delivered
+            
+        total_remain = total_sl - total_delivered_for_merch
+        gradient_style = "padding: 12px; font-weight: bold; background: linear-gradient(90deg, #C71585, #8B008B); -webkit-background-clip: text; -webkit-text-fill-color: transparent;"
+        
+        html_table += f"<tr style='background-color: #fef5fa; border-top: 1px solid #ddd;'>"
+        html_table += f"<td style='text-align: left; {gradient_style}'>{merch}</td>"
+        html_table += f"<td style='{gradient_style}'>{int(total_sl)}</td>"
+        html_table += f"<td style='{gradient_style}'>{int(total_delivered_for_merch)}</td>"
+        html_table += f"<td style='{gradient_style}'>{int(total_remain)}</td></tr>"
+        html_table += size_rows_html
+
+    html_table += "</table>"
+    st.markdown(html_table, unsafe_allow_html=True)
