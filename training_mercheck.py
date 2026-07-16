@@ -359,7 +359,9 @@ st.markdown("---")
 st.markdown('<div class="section-title">📊 THỐNG KÊ KHO MERCHANDISE</div>', unsafe_allow_html=True)
 
 if not df_main.empty:
-    df_main['SL'] = pd.to_numeric(df_main.get('SL', 0), errors='coerce').fillna(0)
+    if 'SL' not in df_main.columns:
+        df_main['SL'] = 0
+    df_main['SL'] = pd.to_numeric(df_main['SL'], errors='coerce').fillna(0)
     
     html_table = "<table style='width: 100%; border-collapse: collapse; font-family: sans-serif; text-align: center; margin-bottom: 20px;'>"
     html_table += "<tr style='border-bottom: 2px solid #8B008B; color: #8B008B; background-color: #f9f9f9;'>"
