@@ -19,7 +19,7 @@ if "success_msg" not in st.session_state:
 if "just_delivered" not in st.session_state:
     st.session_state.just_delivered = False
 
-VALID_PASSWORDS = {"CHECKIN-AN": "An", "CHECKIN-BINH": "Bình", "CHECKIN-CHAU": "Châu", "0519": "Lê Phương"}
+VALID_PASSWORDS = {"123456": "An", "CHECKIN-BINH": "Bình", "CHECKIN-CHAU": "Châu", "0519": "Lê Phương"}
 
 if not st.session_state.authenticated:
     st.markdown("### 🔒 Cổng kiểm soát nội bộ (Trạm Nhập Liệu - TRAINING)")
@@ -147,8 +147,8 @@ if st.session_state.success_msg:
     st.session_state.success_msg = "" 
 
 # --- THIẾT LẬP DỮ LIỆU SANDBOX TRAINING ---
-GSHEET_URL = "https://docs.google.com/spreadsheets/d/1xOqEwHUEejVSL48IzKl9iF13INaXe5HJHVHw7Ntbi_w/export?format=csv&gid=0"
-OUTPUT_SHEET_URL = "https://docs.google.com/spreadsheets/d/1viDJnVsHejc6kHQm-fhNJA56_KkFwhztjkQrXZIaws0/edit"
+GSHEET_URL = "https://docs.google.com/spreadsheets/d/1xOqEwHUEejVSL48IzKl9iF13INaXe5HJHVHw7Ntbi_w/edit?usp=sharing"
+OUTPUT_SHEET_URL = "https://docs.google.com/spreadsheets/d/1viDJnVsHejc6kHQm-fhNJA56_KkFwhztjkQrXZIaws0/edit?usp=sharing"
 
 # --- KẾT NỐI GOOGLE SHEETS API ---
 @st.cache_resource
