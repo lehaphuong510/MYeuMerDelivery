@@ -19,7 +19,7 @@ if "success_msg" not in st.session_state:
 if "just_delivered" not in st.session_state:
     st.session_state.just_delivered = False
 
-VALID_PASSWORDS = {"CHECKIN-AN": "123456", "CHECKIN-BINH": "Bình", "CHECKIN-CHAU": "Châu", "0519": "Lê Phương"}
+VALID_PASSWORDS = {"123456": "Test", "CHECKIN-BINH": "Bình", "CHECKIN-CHAU": "Châu", "0519": "Lê Phương"}
 
 if not st.session_state.authenticated:
     st.markdown("### 🔒 Đăng nhập Trạm Nhập Liệu")
