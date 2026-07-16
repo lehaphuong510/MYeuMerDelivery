@@ -17,7 +17,7 @@ if "picker_id" not in st.session_state:
 VALID_PASSWORDS = {"0519": "Lê Phương", "123456": "An"}
 
 if not st.session_state.authenticated:
-    st.markdown("### 🔒 Đăng nhập Trạm Giao Hàng")
+    st.markdown("### 🔒 Đăng nhập Trạm Giao Hàng - TRAINING")
     password = st.text_input("Nhập mã truy cập cá nhân:", type="password")
     
     if st.button("Đăng nhập"):
