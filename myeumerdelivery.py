@@ -14,7 +14,7 @@ if "authenticated" not in st.session_state:
 if "picker_id" not in st.session_state:
     st.session_state.picker_id = ""
 
-VALID_PASSWORDS = {"0519": "Lê Phương", "PICKER-AN": "An"}
+VALID_PASSWORDS = {"0519": "Lê Phương", "444666": "Lisa Ngọc Hà","161205": "Trân Lê"}
 
 if not st.session_state.authenticated:
     st.markdown("### 🔒 Đăng nhập Trạm Giao Hàng")
