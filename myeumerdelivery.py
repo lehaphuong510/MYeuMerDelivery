@@ -20,7 +20,8 @@ if not st.session_state.authenticated:
     st.markdown("### 🔒 Đăng nhập Trạm Giao Hàng")
     password = st.text_input("Nhập mã truy cập cá nhân:", type="password")
     
-    if st.button("Đăng nhập"):
+    # Đã thêm type="primary"
+    if st.button("Đăng nhập", type="primary"):
         if password in VALID_PASSWORDS: 
             st.session_state.authenticated = True
             st.session_state.picker_id = VALID_PASSWORDS[password] 
@@ -51,7 +52,6 @@ st.markdown("""
         color: inherit;
     }
     
-    /* CLASS HIGHLIGHT MÀU HỒNG - TÍM CHO CHỮ, SỐ & TICK */
     .highlight-text { 
         background: linear-gradient(90deg, #C71585, #8B008B);
         -webkit-background-clip: text;
@@ -71,7 +71,6 @@ st.markdown("""
         text-align: left;
     }
     
-    /* STYLE CHO BẢNG MỚI */
     .order-table {
         width: 100%;
         border-collapse: collapse;
@@ -98,14 +97,13 @@ st.markdown("""
         font-weight: bold;
         font-size: 1.1rem;
     }
-    
-    /* CLASS ÉP MÀU XÁM CHO MÓN KHÔNG LẤY */
     .order-table td.disabled-text {
         color: #c0c0c0 !important;
         font-weight: normal !important;
     }
     
-    div.stButton > button {
+    /* STYLE NÚT CHÍNH (PRIMARY) - HỒNG TÍM */
+    button[kind="primary"] {
         background: linear-gradient(90deg, #C71585, #8B008B) !important;
         color: white !important;
         border: none !important;
@@ -113,12 +111,27 @@ st.markdown("""
         border-radius: 8px !important;
         transition: 0.3s;
     }
-    div.stButton > button:hover {
+    button[kind="primary"]:hover {
         background: linear-gradient(90deg, #8B008B, #C71585) !important;
         box-shadow: 0px 4px 10px rgba(139, 0, 139, 0.4) !important;
     }
 
-    /* FIX RESPONSIVE ÉP FONT SIZE TRÊN ĐIỆN THOẠI Y CHANG APP CHECKER */
+    /* STYLE NÚT PHỤ (SECONDARY) - HỦY / NHẢ ĐƠN */
+    button[kind="secondary"] {
+        background: #f8f9fa !important;
+        color: #6c757d !important;
+        border: 2px solid #dee2e6 !important;
+        font-weight: bold !important;
+        border-radius: 8px !important;
+        transition: 0.3s;
+    }
+    button[kind="secondary"]:hover {
+        background: #fff !important;
+        color: #dc3545 !important; /* Đổi màu chữ sang Đỏ báo hiệu Hủy */
+        border-color: #dc3545 !important;
+        box-shadow: 0px 4px 10px rgba(220, 53, 69, 0.2) !important;
+    }
+
     @media screen and (max-width: 768px) {
         .main-title { font-size: 1.8rem; }
         .section-title { font-size: 1.25rem; white-space: nowrap; }
@@ -174,16 +187,15 @@ except Exception as e:
     df_all = pd.DataFrame()
     st.error(f"Lỗi kết nối Sheet: {e}")
 
-# --- [ĐÃ NÂNG CẤP] LOGIC GET ĐƠN & GIAO HÀNG ---
-# Chỉ hiện nút lấy đơn mới nếu TNV KHÔNG ĐANG cầm đơn nào
+# --- LOGIC GET ĐƠN & GIAO HÀNG ---
 if "current_user" not in st.session_state:
-    if st.button("Thông tin MYêu nhận Mer", use_container_width=True):
+    # Đã thêm type="primary" cho nút lấy đơn
+    if st.button("Thông tin MYêu nhận Mer", type="primary", use_container_width=True):
         if df_all.empty:
             st.warning("Sheet Đầu Ra hiện đang trống chưa có data!")
         elif 'Tên' not in df_all.columns or 'Status' not in df_all.columns:
             st.error("⚠️ File Sheet Đầu Ra đang bị thiếu tên cột hoặc sai tên. M check lại Row 1 nha!")
         else:
-            # LOẠI BỎ ĐƠN COMPLETED VÀ ĐƠN "ĐANG LẤY HÀNG"
             df_pending = df_all[~df_all['Status'].astype(str).str.strip().isin(['Completed', 'Đang lấy hàng'])]
             
             if df_pending.empty:
@@ -201,11 +213,10 @@ if "current_user" not in st.session_state:
                 user_items = df_pending[(df_pending['ĐT'] == target_phone) & (df_pending['Thời Gian'] == target_time)]
                 row_indices = user_items.index.tolist()
                 
-                # BƯỚC KHÓA ĐƠN TRÊN GOOGLE SHEET NGAY LẬP TỨC
                 with st.spinner("Đang khóa đơn trên hệ thống để tránh trùng lặp..."):
                     for idx in row_indices:
                         sheet_row = idx + 2
-                        sheet.update_cell(sheet_row, 9, "Đang lấy hàng") # Ghi vào cột 9 (Status)
+                        sheet.update_cell(sheet_row, 9, "Đang lấy hàng") 
                 
                 st.session_state.current_user = {
                     "name": target_name,
@@ -213,7 +224,7 @@ if "current_user" not in st.session_state:
                     "items": user_items.to_dict('records'),
                     "row_indices": row_indices
                 }
-                st.rerun() # Refresh màn hình để hiện thông tin đơn liền
+                st.rerun() 
 
 if "current_user" in st.session_state:
     user_data = st.session_state.current_user
@@ -276,7 +287,6 @@ if "current_user" in st.session_state:
         table_html += "</table>"
         st.markdown(table_html, unsafe_allow_html=True)
         
-        # --- LOGIC TÍNH TỔNG SỐ LƯỢNG MÓN CẦN BỐC ---
         if agg_items["ÔMM MYÊU Package"]["has_item"]:
             total_veils = (agg_items["ÔMM MYÊU Package"]["S"] + 
                            agg_items["ÔMM MYÊU Package"]["M"] + 
@@ -314,10 +324,10 @@ if "current_user" in st.session_state:
     st.markdown("---")
     photo = st.file_uploader("Chụp hóa đơn/bằng chứng", type=['png', 'jpg', 'jpeg'])
     
-    # --- [ĐÃ NÂNG CẤP] TÁCH 2 NÚT BẤM (HOÀN THÀNH & NHẢ ĐƠN) ---
     col1, col2 = st.columns(2)
     
     with col1:
+        # Nút này giữ nguyên type="primary"
         if st.button("Hoàn Thành Giao Hàng", type="primary", use_container_width=True):
             if photo is None:
                 st.warning("Bạn quên chụp hình bằng chứng rồi!")
@@ -341,11 +351,12 @@ if "current_user" in st.session_state:
                         st.error("Up hình thất bại, vui lòng thử lại!")
                         
     with col2:
+        # Nút này KHÔNG set type, tự động nhận type="secondary" (màu xám / đỏ của CSS)
         if st.button("Hủy / Nhả đơn (Đổi ca)", use_container_width=True):
             with st.spinner("Đang trả đơn lại hệ thống chung..."):
                 for idx in user_data['row_indices']:
                     sheet_row = idx + 2 
-                    sheet.update_cell(sheet_row, 9, "") # Trả trạng thái về rỗng
+                    sheet.update_cell(sheet_row, 9, "") 
             
             del st.session_state.current_user
             st.rerun()
