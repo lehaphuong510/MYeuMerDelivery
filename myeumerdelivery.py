@@ -125,7 +125,7 @@ st.markdown("""
         .base-text { font-size: 1.1rem; }
         .highlight-text { font-size: 1.15rem !important; }
         .order-table th, .order-table td { padding: 6px; font-size: 0.95rem; }
-        .order-table td:first-child { font-size: 0.85rem; white-space: nowrap; } /* Ép Package lên 1 dòng */
+        .order-table td:first-child { font-size: 0.85rem; white-space: nowrap; } 
     }
 </style>
 """, unsafe_allow_html=True)
@@ -174,36 +174,46 @@ except Exception as e:
     df_all = pd.DataFrame()
     st.error(f"Lỗi kết nối Sheet: {e}")
 
-# --- LOGIC GET ĐƠN & GIAO HÀNG ---
-if st.button("Thông tin MYêu nhận Mer", use_container_width=True):
-    if df_all.empty:
-        st.warning("Sheet Đầu Ra hiện đang trống chưa có data!")
-    elif 'Tên' not in df_all.columns or 'Status' not in df_all.columns:
-        st.error("⚠️ File Sheet Đầu Ra đang bị thiếu tên cột hoặc sai tên. M check lại Row 1 nha!")
-    else:
-        df_pending = df_all[df_all['Status'].astype(str).str.strip() != 'Completed']
-        
-        if df_pending.empty:
-            st.success("Tạm thời không có đơn hàng nào chờ giao!")
+# --- [ĐÃ NÂNG CẤP] LOGIC GET ĐƠN & GIAO HÀNG ---
+# Chỉ hiện nút lấy đơn mới nếu TNV KHÔNG ĐANG cầm đơn nào
+if "current_user" not in st.session_state:
+    if st.button("Thông tin MYêu nhận Mer", use_container_width=True):
+        if df_all.empty:
+            st.warning("Sheet Đầu Ra hiện đang trống chưa có data!")
+        elif 'Tên' not in df_all.columns or 'Status' not in df_all.columns:
+            st.error("⚠️ File Sheet Đầu Ra đang bị thiếu tên cột hoặc sai tên. M check lại Row 1 nha!")
         else:
-            df_pending['Thời Gian'] = pd.to_datetime(df_pending['Thời Gian'])
-            df_pending = df_pending.sort_values(by='Thời Gian')
+            # LOẠI BỎ ĐƠN COMPLETED VÀ ĐƠN "ĐANG LẤY HÀNG"
+            df_pending = df_all[~df_all['Status'].astype(str).str.strip().isin(['Completed', 'Đang lấy hàng'])]
             
-            first_row = df_pending.iloc[0]
-            target_phone = first_row['ĐT']
-            target_order = first_row['Mã đơn hàng']
-            target_name = first_row['Tên']
-            target_time = first_row['Thời Gian']
-            
-            user_items = df_pending[(df_pending['ĐT'] == target_phone) & (df_pending['Thời Gian'] == target_time)]
-            row_indices = user_items.index.tolist()
-            
-            st.session_state.current_user = {
-                "name": target_name,
-                "order_code": str(target_order),
-                "items": user_items.to_dict('records'),
-                "row_indices": row_indices
-            }
+            if df_pending.empty:
+                st.success("Tạm thời không có đơn hàng nào trống để lấy!")
+            else:
+                df_pending['Thời Gian'] = pd.to_datetime(df_pending['Thời Gian'])
+                df_pending = df_pending.sort_values(by='Thời Gian')
+                
+                first_row = df_pending.iloc[0]
+                target_phone = first_row['ĐT']
+                target_order = first_row['Mã đơn hàng']
+                target_name = first_row['Tên']
+                target_time = first_row['Thời Gian']
+                
+                user_items = df_pending[(df_pending['ĐT'] == target_phone) & (df_pending['Thời Gian'] == target_time)]
+                row_indices = user_items.index.tolist()
+                
+                # BƯỚC KHÓA ĐƠN TRÊN GOOGLE SHEET NGAY LẬP TỨC
+                with st.spinner("Đang khóa đơn trên hệ thống để tránh trùng lặp..."):
+                    for idx in row_indices:
+                        sheet_row = idx + 2
+                        sheet.update_cell(sheet_row, 9, "Đang lấy hàng") # Ghi vào cột 9 (Status)
+                
+                st.session_state.current_user = {
+                    "name": target_name,
+                    "order_code": str(target_order),
+                    "items": user_items.to_dict('records'),
+                    "row_indices": row_indices
+                }
+                st.rerun() # Refresh màn hình để hiện thông tin đơn liền
 
 if "current_user" in st.session_state:
     user_data = st.session_state.current_user
@@ -304,27 +314,41 @@ if "current_user" in st.session_state:
     st.markdown("---")
     photo = st.file_uploader("Chụp hóa đơn/bằng chứng", type=['png', 'jpg', 'jpeg'])
     
-    if st.button("Hoàn Thành Giao Hàng", type="primary"):
-        if photo is None:
-            st.warning("Bạn quên chụp hình bằng chứng rồi!")
-        else:
-            with st.spinner("Đang lưu hình và chốt đơn..."):
-                suffix = user_data['order_code'][-3:] if len(user_data['order_code']) >= 3 else user_data['order_code']
-                file_name = f"Merch_{suffix}.jpg"
-                
-                img_url = upload_image_to_gdrive_script(photo, file_name)
-                
-                if img_url:
-                    for idx in user_data['row_indices']:
-                        sheet_row = idx + 2 
-                        sheet.update_cell(sheet_row, 9, "Completed") 
-                        sheet.update_cell(sheet_row, 10, img_url)    
+    # --- [ĐÃ NÂNG CẤP] TÁCH 2 NÚT BẤM (HOÀN THÀNH & NHẢ ĐƠN) ---
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        if st.button("Hoàn Thành Giao Hàng", type="primary", use_container_width=True):
+            if photo is None:
+                st.warning("Bạn quên chụp hình bằng chứng rồi!")
+            else:
+                with st.spinner("Đang lưu hình và chốt đơn..."):
+                    suffix = user_data['order_code'][-3:] if len(user_data['order_code']) >= 3 else user_data['order_code']
+                    file_name = f"Merch_{suffix}.jpg"
+                    
+                    img_url = upload_image_to_gdrive_script(photo, file_name)
+                    
+                    if img_url:
+                        for idx in user_data['row_indices']:
+                            sheet_row = idx + 2 
+                            sheet.update_cell(sheet_row, 9, "Completed") 
+                            sheet.update_cell(sheet_row, 10, img_url)    
+                            
+                        st.success("✅ Đã cập nhật hệ thống thành công")
+                        del st.session_state.current_user
+                        st.rerun() 
+                    else:
+                        st.error("Up hình thất bại, vui lòng thử lại!")
                         
-                    st.success("✅ Đã cập nhật hệ thống thành công")
-                    del st.session_state.current_user
-                    st.rerun() 
-                else:
-                    st.error("Up hình thất bại, vui lòng thử lại!")
+    with col2:
+        if st.button("Hủy / Nhả đơn (Đổi ca)", use_container_width=True):
+            with st.spinner("Đang trả đơn lại hệ thống chung..."):
+                for idx in user_data['row_indices']:
+                    sheet_row = idx + 2 
+                    sheet.update_cell(sheet_row, 9, "") # Trả trạng thái về rỗng
+            
+            del st.session_state.current_user
+            st.rerun()
 
 # --- THỐNG KÊ SỐ LƯỢNG ĐÃ GIAO (BẢNG HTML CỐ ĐỊNH FORM) ---
 st.markdown("---")
