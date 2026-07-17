@@ -101,8 +101,9 @@ st.markdown("""
         font-weight: normal !important;
     }
     
-    /* STYLE NÚT CHÍNH (PRIMARY) - HỒNG TÍM */
-    button[kind="primary"] {
+    /* CHỈ STYLE NHỮNG NÚT BẤM THỰC THỤ (BỎ QUA UPLOAD FILE) */
+    /* NÚT CHÍNH (PRIMARY) - HỒNG TÍM */
+    div.stButton > button[kind="primary"] {
         background: linear-gradient(90deg, #C71585, #8B008B) !important;
         color: white !important;
         border: none !important;
@@ -110,23 +111,23 @@ st.markdown("""
         border-radius: 8px !important;
         transition: 0.3s;
     }
-    button[kind="primary"]:hover {
+    div.stButton > button[kind="primary"]:hover {
         background: linear-gradient(90deg, #8B008B, #C71585) !important;
         box-shadow: 0px 4px 10px rgba(139, 0, 139, 0.4) !important;
     }
 
-    /* STYLE NÚT PHỤ (SECONDARY) - XANH DƯƠNG TO XANH LÁ */
-    button[kind="secondary"] {
-        background: linear-gradient(90deg, #0575E6, #00F260) !important;
+    /* NÚT PHỤ (SECONDARY) - XANH DƯƠNG SẬM TO XANH LÁ SẬM */
+    div.stButton > button[kind="secondary"] {
+        background: linear-gradient(90deg, #023E8A, #007F5F) !important;
         color: white !important;
         border: none !important;
         font-weight: bold !important;
         border-radius: 8px !important;
         transition: 0.3s;
     }
-    button[kind="secondary"]:hover {
-        background: linear-gradient(90deg, #00F260, #0575E6) !important;
-        box-shadow: 0px 4px 10px rgba(0, 242, 96, 0.4) !important;
+    div.stButton > button[kind="secondary"]:hover {
+        background: linear-gradient(90deg, #007F5F, #023E8A) !important;
+        box-shadow: 0px 4px 10px rgba(0, 127, 95, 0.4) !important;
     }
 
     @media screen and (max-width: 768px) {
@@ -338,7 +339,6 @@ if "current_user" in st.session_state:
                             sheet_row = idx + 2 
                             sheet.update_cell(sheet_row, 9, "Completed") 
                             sheet.update_cell(sheet_row, 10, img_url)
-                            # GHI NHẬN TÊN NGƯỜI GIAO HÀNG VÀO CỘT 11 (Tùy chỉnh số 11 nếu file của m nằm ở cột khác)
                             sheet.update_cell(sheet_row, 11, st.session_state.picker_id)
                             
                         st.success("✅ Đã cập nhật hệ thống thành công")
