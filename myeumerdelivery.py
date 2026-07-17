@@ -20,7 +20,6 @@ if not st.session_state.authenticated:
     st.markdown("### 🔒 Đăng nhập Trạm Giao Hàng")
     password = st.text_input("Nhập mã truy cập cá nhân:", type="password")
     
-    # Đã thêm type="primary"
     if st.button("Đăng nhập", type="primary"):
         if password in VALID_PASSWORDS: 
             st.session_state.authenticated = True
@@ -116,20 +115,18 @@ st.markdown("""
         box-shadow: 0px 4px 10px rgba(139, 0, 139, 0.4) !important;
     }
 
-    /* STYLE NÚT PHỤ (SECONDARY) - HỦY / NHẢ ĐƠN */
+    /* STYLE NÚT PHỤ (SECONDARY) - XANH DƯƠNG TO XANH LÁ */
     button[kind="secondary"] {
-        background: #f8f9fa !important;
-        color: #6c757d !important;
-        border: 2px solid #dee2e6 !important;
+        background: linear-gradient(90deg, #0575E6, #00F260) !important;
+        color: white !important;
+        border: none !important;
         font-weight: bold !important;
         border-radius: 8px !important;
         transition: 0.3s;
     }
     button[kind="secondary"]:hover {
-        background: #fff !important;
-        color: #dc3545 !important; /* Đổi màu chữ sang Đỏ báo hiệu Hủy */
-        border-color: #dc3545 !important;
-        box-shadow: 0px 4px 10px rgba(220, 53, 69, 0.2) !important;
+        background: linear-gradient(90deg, #00F260, #0575E6) !important;
+        box-shadow: 0px 4px 10px rgba(0, 242, 96, 0.4) !important;
     }
 
     @media screen and (max-width: 768px) {
@@ -189,7 +186,6 @@ except Exception as e:
 
 # --- LOGIC GET ĐƠN & GIAO HÀNG ---
 if "current_user" not in st.session_state:
-    # Đã thêm type="primary" cho nút lấy đơn
     if st.button("Thông tin MYêu nhận Mer", type="primary", use_container_width=True):
         if df_all.empty:
             st.warning("Sheet Đầu Ra hiện đang trống chưa có data!")
@@ -327,7 +323,6 @@ if "current_user" in st.session_state:
     col1, col2 = st.columns(2)
     
     with col1:
-        # Nút này giữ nguyên type="primary"
         if st.button("Hoàn Thành Giao Hàng", type="primary", use_container_width=True):
             if photo is None:
                 st.warning("Bạn quên chụp hình bằng chứng rồi!")
@@ -342,7 +337,9 @@ if "current_user" in st.session_state:
                         for idx in user_data['row_indices']:
                             sheet_row = idx + 2 
                             sheet.update_cell(sheet_row, 9, "Completed") 
-                            sheet.update_cell(sheet_row, 10, img_url)    
+                            sheet.update_cell(sheet_row, 10, img_url)
+                            # GHI NHẬN TÊN NGƯỜI GIAO HÀNG VÀO CỘT 11 (Tùy chỉnh số 11 nếu file của m nằm ở cột khác)
+                            sheet.update_cell(sheet_row, 11, st.session_state.picker_id)
                             
                         st.success("✅ Đã cập nhật hệ thống thành công")
                         del st.session_state.current_user
@@ -351,7 +348,6 @@ if "current_user" in st.session_state:
                         st.error("Up hình thất bại, vui lòng thử lại!")
                         
     with col2:
-        # Nút này KHÔNG set type, tự động nhận type="secondary" (màu xám / đỏ của CSS)
         if st.button("Hủy / Nhả đơn (Đổi ca)", use_container_width=True):
             with st.spinner("Đang trả đơn lại hệ thống chung..."):
                 for idx in user_data['row_indices']:
